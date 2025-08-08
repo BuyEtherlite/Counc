@@ -6,3 +6,15 @@ channel = "stable-25_05"
 
 [deployment]
 run = ["sh", "-c", "composer install"]
+
+[workflows]
+runButton = "Run Council ERP"
+
+[[workflows.workflow]]
+name = "Run Council ERP"
+author = 46059886
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "php artisan serve --host=0.0.0.0 --port=5000"

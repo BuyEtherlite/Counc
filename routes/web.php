@@ -18,8 +18,7 @@ Route::get('/', function () {
 
 // Installation routes
 Route::get('/install', [InstallController::class, 'index'])->name('install.index');
-Route::post('/install', [InstallController::class, 'store'])->name('install.store');
-Route::post('/install/test-database', [InstallController::class, 'testDatabase'])->name('install.test-database');
+Route::post('/install', [InstallController::class, 'testDatabase'])->name('install.test-database'); // Corrected route name
 
 // Demo completion route for testing
 Route::get('/install/demo-complete', function() {
@@ -40,12 +39,12 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 // Protected routes
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    
+
     // Admin routes
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('users', UserController::class);
         Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
-        
+
         Route::resource('departments', DepartmentController::class);
         Route::resource('offices', OfficeController::class);
     });
@@ -55,7 +54,7 @@ Route::middleware('auth')->group(function () {
         // Housing Applications
         Route::resource('applications', HousingApplicationController::class);
         Route::post('applications/{application}/assess', [HousingApplicationController::class, 'assess'])->name('applications.assess');
-        
+
         // Waiting List
         Route::resource('waiting-list', WaitingListController::class, ['except' => ['create', 'store', 'edit', 'update', 'destroy']]);
         Route::post('waiting-list/{waitingList}/contact', [WaitingListController::class, 'contact'])->name('waiting-list.contact');
@@ -63,7 +62,7 @@ Route::middleware('auth')->group(function () {
         Route::patch('waiting-list/{waitingList}/priority', [WaitingListController::class, 'updatePriority'])->name('waiting-list.update-priority');
         Route::post('waiting-list/bulk-contact', [WaitingListController::class, 'bulkContact'])->name('waiting-list.bulk-contact');
         Route::get('waiting-list-recalculate', [WaitingListController::class, 'recalculatePositions'])->name('waiting-list.recalculate');
-        
+
         // Properties
         Route::resource('properties', PropertyController::class);
         Route::patch('properties/{property}/status', [PropertyController::class, 'updateStatus'])->name('properties.update-status');
