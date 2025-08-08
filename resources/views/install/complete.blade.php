@@ -21,12 +21,32 @@
 
                 <div class="card bg-light mb-4">
                     <div class="card-body">
-                        <h5 class="card-title">📋 Admin User Details</h5>
+                        <h5 class="card-title">📋 Admin Login Credentials</h5>
+                        <div class="alert alert-info">
+                            <strong>⚠️ IMPORTANT:</strong> Please copy these credentials to a secure location before proceeding.
+                        </div>
                         <div class="row text-start">
                             <div class="col-sm-4"><strong>Name:</strong></div>
-                            <div class="col-sm-8">{{ $admin->name }}</div>
-                            <div class="col-sm-4"><strong>Email:</strong></div>
-                            <div class="col-sm-8">{{ $admin->email }}</div>
+                            <div class="col-sm-8">
+                                <code>{{ $admin->name }}</code>
+                                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyToClipboard('{{ $admin->name }}')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <div class="col-sm-4"><strong>Email/Username:</strong></div>
+                            <div class="col-sm-8">
+                                <code>{{ $admin->email }}</code>
+                                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyToClipboard('{{ $admin->email }}')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <div class="col-sm-4"><strong>Password:</strong></div>
+                            <div class="col-sm-8">
+                                <code id="adminPassword">{{ request()->session()->get('temp_admin_password', 'Use the password you entered during installation') }}</code>
+                                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="copyToClipboard(document.getElementById('adminPassword').textContent)">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
                             <div class="col-sm-4"><strong>Role:</strong></div>
                             <div class="col-sm-8"><span class="badge bg-primary">Super Administrator</span></div>
                             <div class="col-sm-4"><strong>Created:</strong></div>
@@ -52,20 +72,55 @@
                 </div>
 
                 <div class="mt-4">
-                    <a href="/" class="btn btn-primary btn-lg me-3">
-                        🏠 Go to Dashboard
+                    <a href="/login" class="btn btn-primary btn-lg me-3">
+                        🔑 Continue to Login
                     </a>
-                    <a href="/login" class="btn btn-outline-primary btn-lg">
-                        🔑 Login Now
+                    <a href="/dashboard" class="btn btn-outline-primary btn-lg">
+                        🏠 Go to Dashboard
                     </a>
                 </div>
 
                 <div class="mt-4 text-muted small">
                     <p>🎉 Welcome to your new Council ERP System!</p>
                     <p>Installation completed at {{ now()->format('M d, Y H:i:s') }}</p>
+                    <p><strong>Next Steps:</strong> Use the "Continue to Login" button to access your system with the credentials above.</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Create a temporary success message
+        const btn = event.target.closest('button');
+        const originalIcon = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check text-success"></i>';
+        setTimeout(() => {
+            btn.innerHTML = originalIcon;
+        }, 2000);
+    }, function(err) {
+        console.error('Could not copy text: ', err);
+        // Fallback for older browsers
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            const btn = event.target.closest('button');
+            const originalIcon = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check text-success"></i>';
+            setTimeout(() => {
+                btn.innerHTML = originalIcon;
+            }, 2000);
+        } catch (err) {
+            console.error('Fallback: Oops, unable to copy', err);
+        }
+        document.body.removeChild(textArea);
+    });
+}
+</script>
 @endsection
