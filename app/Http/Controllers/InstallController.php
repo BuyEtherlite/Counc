@@ -20,6 +20,9 @@ class InstallController extends Controller
             return redirect('/')->with('message', 'System is already installed.');
         }
 
+        // Ensure basic environment is set up
+        $this->ensureBasicEnvironment();
+
         // Get system requirements check
         $requirements = $this->checkSystemRequirements();
         $permissions = $this->checkPermissions();
@@ -101,9 +104,48 @@ class InstallController extends Controller
         file_put_contents(storage_path('app/installed.lock'), now());
     }
 
+    private function ensureBasicEnvironment()
+    {
+        $envFile = base_path('.env');
+        
+        // If .env doesn't exist, create it from .env.example
+        if (!file_exists($envFile)) {
+            if (file_exists(base_path('.env.example'))) {
+                copy(base_path('.env.example'), $envFile);
+            } else {
+                // Create a minimal .env file
+                $envContent = "APP_NAME=\"Council ERP\"\n";
+                $envContent .= "APP_ENV=local\n";
+                $envContent .= "APP_DEBUG=true\n";
+                $envContent .= "APP_KEY=\n";
+                $envContent .= "APP_URL=http://localhost\n\n";
+                $envContent .= "DB_CONNECTION=mysql\n";
+                $envContent .= "DB_HOST=127.0.0.1\n";
+                $envContent .= "DB_PORT=3306\n";
+                $envContent .= "DB_DATABASE=council_erp\n";
+                $envContent .= "DB_USERNAME=root\n";
+                $envContent .= "DB_PASSWORD=\n";
+                
+                file_put_contents($envFile, $envContent);
+            }
+        }
+        
+        // Generate APP_KEY if it's missing
+        $env = file_get_contents($envFile);
+        if (preg_match('/^APP_KEY=$/m', $env) || preg_match('/^APP_KEY=\s*$/m', $env)) {
+            $key = 'base64:' . base64_encode(random_bytes(32));
+            $env = preg_replace('/^APP_KEY=.*$/m', 'APP_KEY=' . $key, $env);
+            file_put_contents($envFile, $env);
+        }
+    }
+
     private function updateEnvironmentFile($request)
     {
         $envFile = base_path('.env');
+        
+        // Ensure .env exists
+        $this->ensureBasicEnvironment();
+        
         $env = file_get_contents($envFile);
 
         $env = preg_replace('/^APP_NAME=.*$/m', 'APP_NAME="' . $request->site_name . '"', $env);
@@ -169,6 +211,16 @@ class InstallController extends Controller
                 'name' => 'PHP Version (>= 8.2)',
                 'status' => version_compare(PHP_VERSION, '8.2.0', '>='),
                 'current' => PHP_VERSION
+            ],
+            'composer_installed' => [
+                'name' => 'Composer Dependencies',
+                'status' => file_exists(base_path('vendor/autoload.php')),
+                'current' => file_exists(base_path('vendor/autoload.php')) ? 'Installed' : 'Missing - Run composer install'
+            ],
+            'env_file' => [
+                'name' => 'Environment File (.env)',
+                'status' => file_exists(base_path('.env')),
+                'current' => file_exists(base_path('.env')) ? 'Present' : 'Missing - Will be created'
             ],
             'pdo' => [
                 'name' => 'PDO Extension',

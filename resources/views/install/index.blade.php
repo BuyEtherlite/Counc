@@ -30,6 +30,36 @@
                     <div class="col-12">
                         <h4 class="border-bottom pb-2">🔍 System Requirements</h4>
                         <p class="text-muted">Please ensure your system meets the following requirements:</p>
+                        
+                        @if(!collect($requirements)->every('status'))
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading">💡 First time deploying to hosting?</h6>
+                                <p class="mb-2">If you just uploaded files to your hosting provider and see failed requirements, this is normal!</p>
+                                <p class="mb-0">
+                                    <strong>Most common fix:</strong> Run <code>composer install --no-dev</code> in your hosting terminal.
+                                    <a href="#deployment-help" data-bs-toggle="collapse" class="ms-2">View deployment guide</a>
+                                </p>
+                            </div>
+                            
+                            <div class="collapse" id="deployment-help">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6>🚀 Quick Deployment Fix</h6>
+                                        <ol class="mb-2">
+                                            <li>Access your hosting control panel or SSH</li>
+                                            <li>Navigate to your website directory</li>
+                                            <li>Run: <code>composer install --no-dev</code></li>
+                                            <li>Set permissions: <code>chmod -R 775 storage/ bootstrap/cache/</code></li>
+                                            <li>Refresh this page</li>
+                                        </ol>
+                                        <p class="small mb-0">
+                                            <strong>Need detailed help?</strong> See <a href="{{ asset('DEPLOYMENT.md') }}" target="_blank">DEPLOYMENT.md</a> 
+                                            or contact your hosting provider's support.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
                     </div>
                     
                     <div class="col-md-6">
