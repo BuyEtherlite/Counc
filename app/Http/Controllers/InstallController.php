@@ -104,6 +104,24 @@ class InstallController extends Controller
         file_put_contents(storage_path('app/installed.lock'), now());
     }
 
+    public function complete()
+    {
+        // This method handles GET requests to /install/complete
+        // It should only be accessible after installation is complete
+        if (!$this->isInstalled()) {
+            return redirect('/install');
+        }
+
+        // Get admin user (assuming it's the first user created)
+        $admin = \App\Models\User::where('role', 'super_admin')->first();
+        
+        if (!$admin) {
+            return redirect('/install')->withErrors(['error' => 'Admin user not found']);
+        }
+
+        return view('install.complete', compact('admin'));
+    }
+
     private function ensureBasicEnvironment()
     {
         $envFile = base_path('.env');

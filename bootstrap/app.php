@@ -12,12 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->web(append: [
-            \App\Http\Middleware\EnsureInstallation::class,
-        ]);
-        
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'ensure.installation' => \App\Http\Middleware\EnsureInstallation::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
