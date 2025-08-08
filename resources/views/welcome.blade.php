@@ -108,3 +108,71 @@
     </footer>
 </body>
 </html>
+@extends('layouts.app')
+
+@section('title', 'Welcome to Council ERP')
+
+@section('content')
+<div class="max-w-4xl mx-auto text-center">
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">
+            🏛️ Welcome to Council ERP
+        </h1>
+        <p class="text-xl text-gray-600 mb-8">
+            Comprehensive Enterprise Resource Planning for Local Government
+        </p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-8 mb-12">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="text-3xl mb-4">🏠</div>
+            <h3 class="text-xl font-semibold mb-2">Housing Management</h3>
+            <p class="text-gray-600 mb-4">
+                Manage housing applications, waiting lists, property allocations, and tenant records.
+            </p>
+            <a href="{{ route('housing.applications.index') }}" class="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
+                View Housing
+            </a>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="text-3xl mb-4">👥</div>
+            <h3 class="text-xl font-semibold mb-2">Administration</h3>
+            <p class="text-gray-600 mb-4">
+                Manage users, departments, offices, and system configuration.
+            </p>
+            @if(auth()->user() && in_array(auth()->user()->role, ['super_admin', 'admin']))
+                <a href="{{ route('admin.users.index') }}" class="inline-block bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors">
+                    Admin Panel
+                </a>
+            @else
+                <span class="inline-block bg-gray-400 text-white px-4 py-2 rounded cursor-not-allowed">
+                    Admin Access Required
+                </span>
+            @endif
+        </div>
+    </div>
+
+    <div class="bg-blue-50 rounded-lg p-6">
+        <h3 class="text-lg font-semibold mb-2">Quick Stats</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div>
+                <div class="text-2xl font-bold text-blue-600">{{ \App\Models\Housing\HousingApplication::count() }}</div>
+                <div class="text-sm text-gray-600">Applications</div>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-green-600">{{ \App\Models\Housing\Property::where('status', 'available')->count() }}</div>
+                <div class="text-sm text-gray-600">Available Properties</div>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-orange-600">{{ \App\Models\Housing\WaitingList::count() }}</div>
+                <div class="text-sm text-gray-600">Waiting List</div>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-purple-600">{{ \App\Models\User::where('is_active', true)->count() }}</div>
+                <div class="text-sm text-gray-600">Active Users</div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection

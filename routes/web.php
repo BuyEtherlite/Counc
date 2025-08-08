@@ -11,8 +11,12 @@ use App\Http\Controllers\Housing\HousingApplicationController;
 use App\Http\Controllers\Housing\WaitingListController;
 use App\Http\Controllers\Housing\PropertyController;
 
-// Public routes
+// Public routes - redirect to install if not completed
 Route::get('/', function () {
+    // Check if installation is complete
+    if (!file_exists(storage_path('app/installed.lock'))) {
+        return redirect('/install');
+    }
     return view('welcome');
 });
 

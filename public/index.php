@@ -62,6 +62,74 @@ function handlePreInstallation($issues) {
 }
 
 function showInstallationError($type) {
+    echo "<!DOCTYPE html>
+    <html>
+    <head>
+        <title>Council ERP - Installation Required</title>
+        <style>
+            body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+            .error-box { background: #f8d7da; color: #721c24; padding: 20px; border-radius: 5px; margin: 20px 0; }
+        </style>
+    </head>
+    <body>
+        <h1>🏛️ Council ERP - Installation Required</h1>";
+    
+    if ($type === 'missing_dependencies') {
+        echo "<div class='error-box'>
+            <strong>Missing Dependencies:</strong> Please run 'composer install' to install required dependencies.
+        </div>";
+    } elseif ($type === 'storage_permissions') {
+        echo "<div class='error-box'>
+            <strong>Storage Permissions:</strong> The storage directory is not writable. Please set proper permissions.
+        </div>";
+    }
+    
+    echo "</body></html>";
+}
+
+// Pre-installation checks
+$issues = checkInstallationRequirements();
+if (!empty($issues)) {
+    handlePreInstallation($issues);
+}
+
+// Catch Laravel bootstrap errors and redirect to install
+try {
+    // Bootstrap Laravel and handle the request...
+    (require_once __DIR__.'/../bootstrap/app.php')
+        ->handleRequest(Request::capture());
+} catch (\Exception $e) {
+    // If Laravel fails to bootstrap, likely due to missing APP_KEY or database issues
+    // Check if we're already on the install page to avoid redirect loops
+    $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+    if (strpos($requestUri, '/install') === false) {
+        // Redirect to install page
+        header('Location: /install');
+        exit;
+    } else {
+        // If we're already on install page but still getting errors, show the error
+        echo "<!DOCTYPE html>
+        <html>
+        <head>
+            <title>Installation Error</title>
+            <style>
+                body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+                .error-box { background: #f8d7da; color: #721c24; padding: 20px; border-radius: 5px; margin: 20px 0; }
+            </style>
+        </head>
+        <body>
+            <h1>🏛️ Council ERP - Installation Error</h1>
+            <div class='error-box'>
+                <strong>Bootstrap Error:</strong> " . htmlspecialchars($e->getMessage()) . "
+            </div>
+            <p>Please check your .env file configuration and ensure all required extensions are installed.</p>
+        </body>
+        </html>";
+        exit;
+    }
+}
+
+function showInstallationError($type) {
     $title = 'Installation Required';
     $message = '';
     $instructions = '';
