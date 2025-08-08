@@ -17,11 +17,18 @@
                 
                 @if ($errors->any())
                     <div class="alert alert-danger">
+                        <h6 class="alert-heading">❌ Please fix the following issues:</h6>
                         <ul class="mb-0">
                             @foreach ($errors->all() as $error)
                                 <li>{{ $error }}</li>
                             @endforeach
                         </ul>
+                    </div>
+                @endif
+
+                @if (session('success'))
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> {{ session('success') }}
                     </div>
                 @endif
 
@@ -310,10 +317,43 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Validate required fields
+        const requiredFields = ['site_name', 'admin_name', 'admin_email', 'admin_password', 'admin_password_confirmation', 'council_name', 'council_address', 'council_contact'];
+        let hasErrors = false;
+
+        requiredFields.forEach(fieldName => {
+            const field = document.getElementById(fieldName);
+            if (field && !field.value.trim()) {
+                field.classList.add('is-invalid');
+                hasErrors = true;
+            } else if (field) {
+                field.classList.remove('is-invalid');
+            }
+        });
+
+        // Check password confirmation
+        const password = document.getElementById('admin_password').value;
+        const confirmPassword = document.getElementById('admin_password_confirmation').value;
+        
+        if (password !== confirmPassword) {
+            document.getElementById('admin_password_confirmation').classList.add('is-invalid');
+            showDbResult('Passwords do not match.', 'danger');
+            hasErrors = true;
+        }
+
+        if (hasErrors) {
+            e.preventDefault();
+            return;
+        }
+
         // Show loading state during installation
         installButton.disabled = true;
         document.getElementById('installText').textContent = 'Installing...';
         document.getElementById('installSpinner').style.display = 'inline-block';
+        
+        // Disable all form inputs to prevent changes
+        const formInputs = installForm.querySelectorAll('input, button, textarea');
+        formInputs.forEach(input => input.disabled = true);
     });
 
     // Reset database test status when fields change

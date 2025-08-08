@@ -22,7 +22,7 @@ Route::get('/', function () {
 
 // Installation routes
 Route::prefix('install')->group(function () {
-    Route::get('/', [InstallController::class, 'index'])->name('install');
+    Route::get('/', [InstallController::class, 'index'])->name('install.index');
     Route::post('/', [InstallController::class, 'store'])->name('install.store');
     Route::post('/test-database', [InstallController::class, 'testDatabase'])->name('install.test-database');
     Route::get('/complete', [InstallController::class, 'complete'])->name('install.complete');

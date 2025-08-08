@@ -32,34 +32,42 @@ class InstallController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'site_name' => 'required|string|max:255',
-            'site_description' => 'nullable|string',
-            'admin_name' => 'required|string|max:255',
-            'admin_email' => 'required|email',
-            'admin_password' => 'required|min:8|confirmed',
-            'db_host' => 'required|string',
-            'db_port' => 'required|numeric',
-            'db_database' => 'required|string',
-            'db_username' => 'required|string',
-            'db_password' => 'nullable|string',
-            'council_name' => 'required|string|max:255',
-            'council_address' => 'required|string',
-            'council_contact' => 'required|string',
-        ]);
-
         try {
+            $request->validate([
+                'site_name' => 'required|string|max:255',
+                'site_description' => 'nullable|string',
+                'admin_name' => 'required|string|max:255',
+                'admin_email' => 'required|email',
+                'admin_password' => 'required|min:8|confirmed',
+                'db_host' => 'required|string',
+                'db_port' => 'required|numeric',
+                'db_database' => 'required|string',
+                'db_username' => 'required|string',
+                'db_password' => 'nullable|string',
+                'council_name' => 'required|string|max:255',
+                'council_address' => 'required|string',
+                'council_contact' => 'required|string',
+            ]);
+
+            // First, test database connection before proceeding
+            $this->testDatabaseConnection($request);
+
             // Update environment file
             $this->updateEnvironmentFile($request);
 
-            // Test database connection
+            // Clear config cache to ensure new environment variables are loaded
+            Artisan::call('config:clear');
+
+            // Set database connection for this request
             config(['database.connections.mysql.host' => $request->db_host]);
             config(['database.connections.mysql.port' => $request->db_port]);
             config(['database.connections.mysql.database' => $request->db_database]);
             config(['database.connections.mysql.username' => $request->db_username]);
             config(['database.connections.mysql.password' => $request->db_password]);
 
-            DB::connection()->getPdo();
+            // Reconnect to database with new settings
+            DB::purge('mysql');
+            DB::reconnect('mysql');
 
             // Run migrations
             Artisan::call('migrate', ['--force' => true]);
@@ -87,10 +95,38 @@ class InstallController extends Controller
             // Mark installation as complete
             $this->markInstallationComplete();
 
-            return view('install.complete', compact('admin'));
+            return redirect()->route('install.complete')->with('success', 'Installation completed successfully!');
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Installation failed: ' . $e->getMessage()]);
+            \Log::error('Installation failed: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Installation failed: ' . $e->getMessage()])->withInput();
+        }
+    }
+
+    private function testDatabaseConnection($request)
+    {
+        try {
+            $connection = [
+                'driver' => 'mysql',
+                'host' => $request->db_host,
+                'port' => $request->db_port,
+                'database' => $request->db_database,
+                'username' => $request->db_username,
+                'password' => $request->db_password,
+                'charset' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+                'prefix' => '',
+                'strict' => true,
+                'engine' => null,
+            ];
+
+            config(['database.connections.test_connection' => $connection]);
+            DB::connection('test_connection')->getPdo();
+            DB::purge('test_connection');
+        } catch (\Exception $e) {
+            throw new \Exception('Database connection failed: ' . $e->getMessage());
         }
     }
 
