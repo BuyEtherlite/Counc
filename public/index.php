@@ -87,10 +87,22 @@ function showInstallationError($type) {
     echo "</body></html>";
 }
 
-// Pre-installation checks
-$issues = checkInstallationRequirements();
-if (!empty($issues)) {
-    handlePreInstallation($issues);
+// Basic pre-installation check
+if (!file_exists(__DIR__.'/../vendor/autoload.php')) {
+    showInstallationError('missing_dependencies');
+    exit;
+}
+
+// Check if .env exists, create basic one if not
+if (!file_exists(__DIR__.'/../.env')) {
+    $envContent = "APP_NAME=\"Council ERP\"\n";
+    $envContent .= "APP_ENV=local\n";
+    $envContent .= "APP_DEBUG=true\n";
+    $envContent .= "APP_KEY=\n";
+    $envContent .= "APP_URL=http://localhost:5000\n\n";
+    $envContent .= "DB_CONNECTION=sqlite\n";
+    $envContent .= "DB_DATABASE=database/database.sqlite\n";
+    @file_put_contents(__DIR__.'/../.env', $envContent);
 }
 
 // Determine if the application is in maintenance mode...
