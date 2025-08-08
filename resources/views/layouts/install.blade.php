@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Council ERP')</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         .install-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -39,6 +41,28 @@
         .step.completed {
             background: #28a745;
             color: white;
+        }
+        .requirements-list, .permissions-list {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .requirement-item, .permission-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .requirement-item:last-child, .permission-item:last-child {
+            border-bottom: none;
+        }
+        .alert {
+            border-radius: 10px;
+        }
+        .form-control {
+            border-radius: 8px;
+        }
+        .btn {
+            border-radius: 8px;
         }
     </style>
 </head>

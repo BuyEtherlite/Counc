@@ -19,6 +19,7 @@ Route::get('/', function () {
 // Installation routes
 Route::get('/install', [InstallController::class, 'index'])->name('install.index');
 Route::post('/install', [InstallController::class, 'store'])->name('install.store');
+Route::post('/install/test-database', [InstallController::class, 'testDatabase'])->name('install.test-database');
 
 // Authentication routes
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');

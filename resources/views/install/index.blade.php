@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="row justify-content-center">
-    <div class="col-md-10">
+    <div class="col-md-12">
         <div class="card install-card">
             <div class="card-body p-5">
                 <div class="step-indicator">
@@ -13,7 +13,7 @@
                     <div class="step">3</div>
                 </div>
 
-                <h2 class="text-center mb-4">Welcome to Council ERP Installation</h2>
+                <h2 class="text-center mb-4">🚀 Council ERP Installation</h2>
                 
                 @if ($errors->any())
                     <div class="alert alert-danger">
@@ -25,7 +25,54 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('install.store') }}">
+                <!-- System Requirements Check -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <h4 class="border-bottom pb-2">🔍 System Requirements</h4>
+                        <p class="text-muted">Please ensure your system meets the following requirements:</p>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6>PHP Requirements</h6>
+                        <div class="requirements-list">
+                            @foreach($requirements as $req)
+                                <div class="requirement-item d-flex justify-content-between align-items-center mb-2">
+                                    <span>{{ $req['name'] }}</span>
+                                    <span class="badge {{ $req['status'] ? 'bg-success' : 'bg-danger' }}">
+                                        {{ $req['status'] ? '✓' : '✗' }} {{ $req['current'] }}
+                                    </span>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6>Folder Permissions</h6>
+                        <div class="permissions-list">
+                            @foreach($permissions as $perm)
+                                <div class="permission-item d-flex justify-content-between align-items-center mb-2">
+                                    <span>{{ $perm['name'] }}</span>
+                                    <span class="badge {{ $perm['status'] ? 'bg-success' : 'bg-danger' }}">
+                                        {{ $perm['status'] ? '✓ Writable' : '✗ Not Writable' }}
+                                    </span>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                @php
+                    $allRequirementsMet = collect($requirements)->every('status') && collect($permissions)->every('status');
+                @endphp
+
+                @if(!$allRequirementsMet)
+                    <div class="alert alert-warning">
+                        <h6 class="alert-heading">⚠️ System Requirements Not Met</h6>
+                        <p class="mb-0">Please resolve the above issues before proceeding with the installation.</p>
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('install.store') }}" id="installForm" {{ !$allRequirementsMet ? 'style=display:none' : '' }}>
                     @csrf
                     
                     <!-- Site Settings -->
@@ -49,6 +96,7 @@
                     <div class="row mb-4">
                         <div class="col-12">
                             <h4 class="border-bottom pb-2">🗄️ Database Settings</h4>
+                            <p class="text-muted">Enter your database connection details below:</p>
                         </div>
                         <div class="col-md-6">
                             <label for="db_host" class="form-label">Database Host *</label>
@@ -70,9 +118,18 @@
                             <input type="text" class="form-control" id="db_username" name="db_username" 
                                    value="{{ old('db_username', 'root') }}" required>
                         </div>
-                        <div class="col-md-12">
+                        <div class="col-md-8">
                             <label for="db_password" class="form-label">Database Password</label>
                             <input type="password" class="form-control" id="db_password" name="db_password">
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="button" class="btn btn-outline-primary w-100" id="testDbConnection">
+                                <span id="testDbText">🔍 Test Connection</span>
+                                <span id="testDbSpinner" class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
+                            </button>
+                        </div>
+                        <div class="col-12 mt-2">
+                            <div id="dbTestResult" style="display: none;"></div>
                         </div>
                     </div>
 
@@ -125,11 +182,23 @@
                     </div>
 
                     <div class="text-center">
-                        <button type="submit" class="btn btn-primary btn-lg px-5">
-                            🚀 Install Council ERP System
+                        <button type="submit" class="btn btn-primary btn-lg px-5" id="installButton" disabled>
+                            <span id="installText">🚀 Install Council ERP System</span>
+                            <span id="installSpinner" class="spinner-border spinner-border-sm ms-2" style="display: none;"></span>
                         </button>
+                        <p class="text-muted mt-2 small">
+                            <i class="fas fa-info-circle"></i> Please test database connection before installing
+                        </p>
                     </div>
                 </form>
+
+                @if(!$allRequirementsMet)
+                    <div class="text-center">
+                        <button class="btn btn-outline-secondary btn-lg px-5" disabled>
+                            ⚠️ Resolve System Requirements First
+                        </button>
+                    </div>
+                @endif
             </div>
         </div>
     </div>
@@ -139,20 +208,112 @@
 @section('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Test database connection button
-    const testDbBtn = document.createElement('button');
-    testDbBtn.type = 'button';
-    testDbBtn.className = 'btn btn-outline-secondary btn-sm';
-    testDbBtn.innerHTML = '🔍 Test Connection';
-    testDbBtn.onclick = function() {
-        // Add AJAX test functionality here
-        alert('Database connection testing functionality can be added here');
-    };
-    
-    const dbSection = document.querySelector('h4:contains("Database Settings")');
-    if (dbSection) {
-        dbSection.parentElement.appendChild(testDbBtn);
+    const testDbBtn = document.getElementById('testDbConnection');
+    const installButton = document.getElementById('installButton');
+    const installForm = document.getElementById('installForm');
+    let dbConnectionTested = false;
+
+    // Test database connection
+    testDbBtn.addEventListener('click', function() {
+        const dbHost = document.getElementById('db_host').value;
+        const dbPort = document.getElementById('db_port').value;
+        const dbDatabase = document.getElementById('db_database').value;
+        const dbUsername = document.getElementById('db_username').value;
+        const dbPassword = document.getElementById('db_password').value;
+
+        if (!dbHost || !dbPort || !dbDatabase || !dbUsername) {
+            showDbResult('Please fill in all required database fields.', 'danger');
+            return;
+        }
+
+        // Show loading state
+        document.getElementById('testDbText').textContent = 'Testing...';
+        document.getElementById('testDbSpinner').style.display = 'inline-block';
+        testDbBtn.disabled = true;
+
+        // Make AJAX request
+        fetch('{{ route("install.test-database") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+                db_host: dbHost,
+                db_port: dbPort,
+                db_database: dbDatabase,
+                db_username: dbUsername,
+                db_password: dbPassword
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showDbResult(data.message, 'success');
+                dbConnectionTested = true;
+                installButton.disabled = false;
+                document.getElementById('installText').textContent = '🚀 Install Council ERP System';
+            } else {
+                showDbResult(data.message, 'danger');
+                dbConnectionTested = false;
+                installButton.disabled = true;
+            }
+        })
+        .catch(error => {
+            showDbResult('An error occurred while testing the database connection.', 'danger');
+            dbConnectionTested = false;
+            installButton.disabled = true;
+        })
+        .finally(() => {
+            // Reset button state
+            document.getElementById('testDbText').textContent = '🔍 Test Connection';
+            document.getElementById('testDbSpinner').style.display = 'none';
+            testDbBtn.disabled = false;
+        });
+    });
+
+    // Handle form submission
+    installForm?.addEventListener('submit', function(e) {
+        if (!dbConnectionTested) {
+            e.preventDefault();
+            showDbResult('Please test the database connection first.', 'warning');
+            return;
+        }
+
+        // Show loading state during installation
+        installButton.disabled = true;
+        document.getElementById('installText').textContent = 'Installing...';
+        document.getElementById('installSpinner').style.display = 'inline-block';
+    });
+
+    // Reset database test status when fields change
+    const dbFields = ['db_host', 'db_port', 'db_database', 'db_username', 'db_password'];
+    dbFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', function() {
+                dbConnectionTested = false;
+                installButton.disabled = true;
+                hideDbResult();
+            });
+        }
+    });
+
+    function showDbResult(message, type) {
+        const resultDiv = document.getElementById('dbTestResult');
+        resultDiv.className = `alert alert-${type}`;
+        resultDiv.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'times-circle' : 'exclamation-triangle'}"></i> ${message}`;
+        resultDiv.style.display = 'block';
     }
+
+    function hideDbResult() {
+        document.getElementById('dbTestResult').style.display = 'none';
+    }
+
+    // Show install form if requirements are met
+    @if($allRequirementsMet)
+        document.getElementById('installForm').style.display = 'block';
+    @endif
 });
 </script>
 @endsection

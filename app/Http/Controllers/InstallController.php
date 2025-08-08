@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use App\Models\User;
 use App\Models\Council;
 
@@ -18,7 +20,11 @@ class InstallController extends Controller
             return redirect('/')->with('message', 'System is already installed.');
         }
 
-        return view('install.index');
+        // Get system requirements check
+        $requirements = $this->checkSystemRequirements();
+        $permissions = $this->checkPermissions();
+
+        return view('install.index', compact('requirements', 'permissions'));
     }
 
     public function store(Request $request)
@@ -64,6 +70,9 @@ class InstallController extends Controller
                 'is_active' => true,
             ]);
 
+            // Store admin password temporarily for display (security: only in session)
+            session(['temp_admin_password' => $request->admin_password]);
+
             // Create council record
             Council::create([
                 'name' => $request->council_name,
@@ -105,5 +114,132 @@ class InstallController extends Controller
         $env = preg_replace('/^DB_PASSWORD=.*$/m', 'DB_PASSWORD=' . $request->db_password, $env);
 
         file_put_contents($envFile, $env);
+    }
+
+    // Test database connection via AJAX
+    public function testDatabase(Request $request)
+    {
+        $request->validate([
+            'db_host' => 'required|string',
+            'db_port' => 'required|numeric',
+            'db_database' => 'required|string',
+            'db_username' => 'required|string',
+            'db_password' => 'nullable|string',
+        ]);
+
+        try {
+            // Create a temporary database connection
+            $connection = [
+                'driver' => 'mysql',
+                'host' => $request->db_host,
+                'port' => $request->db_port,
+                'database' => $request->db_database,
+                'username' => $request->db_username,
+                'password' => $request->db_password,
+                'charset' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+                'prefix' => '',
+                'strict' => true,
+                'engine' => null,
+            ];
+
+            // Set the test connection
+            config(['database.connections.test_connection' => $connection]);
+            
+            // Test the connection
+            DB::connection('test_connection')->getPdo();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Database connection successful!'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Database connection failed: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    // Check PHP requirements
+    private function checkSystemRequirements()
+    {
+        $requirements = [
+            'php_version' => [
+                'name' => 'PHP Version (>= 8.2)',
+                'status' => version_compare(PHP_VERSION, '8.2.0', '>='),
+                'current' => PHP_VERSION
+            ],
+            'pdo' => [
+                'name' => 'PDO Extension',
+                'status' => extension_loaded('pdo'),
+                'current' => extension_loaded('pdo') ? 'Enabled' : 'Disabled'
+            ],
+            'pdo_mysql' => [
+                'name' => 'PDO MySQL Extension',
+                'status' => extension_loaded('pdo_mysql'),
+                'current' => extension_loaded('pdo_mysql') ? 'Enabled' : 'Disabled'
+            ],
+            'mbstring' => [
+                'name' => 'Mbstring Extension',
+                'status' => extension_loaded('mbstring'),
+                'current' => extension_loaded('mbstring') ? 'Enabled' : 'Disabled'
+            ],
+            'openssl' => [
+                'name' => 'OpenSSL Extension',
+                'status' => extension_loaded('openssl'),
+                'current' => extension_loaded('openssl') ? 'Enabled' : 'Disabled'
+            ],
+            'tokenizer' => [
+                'name' => 'Tokenizer Extension',
+                'status' => extension_loaded('tokenizer'),
+                'current' => extension_loaded('tokenizer') ? 'Enabled' : 'Disabled'
+            ],
+            'xml' => [
+                'name' => 'XML Extension',
+                'status' => extension_loaded('xml'),
+                'current' => extension_loaded('xml') ? 'Enabled' : 'Disabled'
+            ],
+            'ctype' => [
+                'name' => 'Ctype Extension',
+                'status' => extension_loaded('ctype'),
+                'current' => extension_loaded('ctype') ? 'Enabled' : 'Disabled'
+            ],
+            'json' => [
+                'name' => 'JSON Extension',
+                'status' => extension_loaded('json'),
+                'current' => extension_loaded('json') ? 'Enabled' : 'Disabled'
+            ],
+            'curl' => [
+                'name' => 'cURL Extension',
+                'status' => extension_loaded('curl'),
+                'current' => extension_loaded('curl') ? 'Enabled' : 'Disabled'
+            ]
+        ];
+
+        return $requirements;
+    }
+
+    // Check folder permissions
+    private function checkPermissions()
+    {
+        $paths = [
+            'storage/app' => storage_path('app'),
+            'storage/framework' => storage_path('framework'),
+            'storage/logs' => storage_path('logs'),
+            'bootstrap/cache' => base_path('bootstrap/cache'),
+        ];
+
+        $permissions = [];
+        
+        foreach ($paths as $name => $path) {
+            $permissions[$name] = [
+                'name' => $name,
+                'status' => File::isWritable($path),
+                'path' => $path
+            ];
+        }
+
+        return $permissions;
     }
 }
