@@ -27,6 +27,14 @@ class Customer extends Model
     ];
 
     /**
+     * Create a new factory instance for the model.
+     */
+    protected static function newFactory()
+    {
+        return \Database\Factories\CRM\CustomerFactory::new();
+    }
+
+    /**
      * Get the full name attribute.
      */
     public function getFullNameAttribute(): string
