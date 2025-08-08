@@ -36,6 +36,19 @@ Before uploading to your hosting provider, ensure you have:
    ```bash
    composer install --no-dev --optimize-autoloader
    ```
+   
+   **If you get GitHub authentication errors, try these alternatives:**
+   ```bash
+   # Option A: Use source packages (slower but more reliable)
+   composer install --prefer-source --no-dev --optimize-autoloader
+   
+   # Option B: Use dist packages with fallback
+   composer install --prefer-dist --no-dev --optimize-autoloader
+   
+   # Option C: Configure composer to use different repository
+   composer config repos.packagist composer https://packagist.org
+   composer install --no-dev --optimize-autoloader
+   ```
 
 4. **Set correct permissions**:
    ```bash
@@ -95,6 +108,24 @@ domain.com → /path/to/council-erp/
 ```
 
 ## 🚨 Common Issues and Solutions
+
+### Issue: GitHub Authentication Error
+**Error**: `Could not authenticate against github.com` or `Failed to download [package] from dist`
+**Cause**: GitHub API rate limiting or authentication issues
+**Solution**: 
+1. **Use source packages (most reliable):**
+   ```bash
+   composer install --prefer-source --no-dev --optimize-autoloader
+   ```
+2. **Use optimized dist packages:**
+   ```bash
+   composer install --prefer-dist --no-dev --optimize-autoloader
+   ```
+3. **Configure different repository:**
+   ```bash
+   composer config repos.packagist composer https://packagist.org
+   composer install --no-dev --optimize-autoloader
+   ```
 
 ### Issue: "White screen" or "500 Error"
 **Cause**: Missing dependencies or permissions

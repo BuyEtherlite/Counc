@@ -58,6 +58,19 @@ A comprehensive Enterprise Resource Planning (ERP) system designed specifically 
    composer install
    ```
 
+   **If you encounter GitHub authentication errors:**
+   ```bash
+   # Option 1: Use Packagist repository (recommended for most users)
+   composer install --prefer-dist --no-dev --optimize-autoloader
+   
+   # Option 2: Increase GitHub API limit with token (for developers)
+   composer config -g github-oauth.github.com [your-github-token]
+   composer install
+   
+   # Option 3: Use source instead of dist packages
+   composer install --prefer-source
+   ```
+
 3. **Set up environment**
    ```bash
    cp .env.example .env
@@ -103,6 +116,56 @@ A comprehensive Enterprise Resource Planning (ERP) system designed specifically 
    ...   'is_active' => true
    ... ]);
    ```
+
+## 🚨 Troubleshooting
+
+### Common Installation Issues
+
+#### GitHub Authentication Error
+**Error:** `Could not authenticate against github.com` or `Failed to download [package] from dist`
+
+**Solutions:**
+1. **Use optimized installation (Recommended):**
+   ```bash
+   composer install --prefer-dist --no-dev --optimize-autoloader
+   ```
+
+2. **Use source packages:**
+   ```bash
+   composer install --prefer-source --no-dev
+   ```
+
+3. **Set up GitHub token (for developers):**
+   ```bash
+   # Create token at: https://github.com/settings/tokens/new?scopes=&description=Composer
+   composer config -g github-oauth.github.com YOUR_GITHUB_TOKEN
+   composer install
+   ```
+
+4. **Use Composer without GitHub API:**
+   ```bash
+   composer config -g repos.packagist composer https://packagist.org
+   composer install --no-dev
+   ```
+
+#### Permission Errors
+**Error:** `Permission denied` on storage or cache directories
+
+**Solution:**
+```bash
+chmod -R 775 storage/
+chmod -R 775 bootstrap/cache/
+chown -R www-data:www-data storage/ bootstrap/cache/
+```
+
+#### Application Key Error
+**Error:** `Application key not set`
+
+**Solution:**
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
 ## 🔧 Configuration
 
