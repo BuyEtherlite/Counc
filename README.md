@@ -60,15 +60,18 @@ A comprehensive Enterprise Resource Planning (ERP) system designed specifically 
 
    **If you encounter GitHub authentication errors:**
    ```bash
-   # Option 1: Use Packagist repository (recommended for most users)
+   # Option 1: Use source packages (most reliable)
+   composer install --prefer-source --no-dev --optimize-autoloader
+   
+   # Option 2: Use dist packages with fallback
    composer install --prefer-dist --no-dev --optimize-autoloader
    
-   # Option 2: Increase GitHub API limit with token (for developers)
+   # Option 3: Increase GitHub API limit with token (for developers)
    composer config -g github-oauth.github.com [your-github-token]
    composer install
    
-   # Option 3: Use source instead of dist packages
-   composer install --prefer-source
+   # Complete one-line installation (recommended)
+   composer install --prefer-source --no-dev --optimize-autoloader && chmod -R 775 storage/ bootstrap/cache/
    ```
 
 3. **Set up environment**

@@ -50,15 +50,35 @@ Before uploading to your hosting provider, ensure you have:
    composer install --no-dev --optimize-autoloader
    ```
 
+   **Complete installation command (recommended):**
+   ```bash
+   composer install --prefer-source --no-dev --optimize-autoloader && \
+   chmod -R 775 storage/ bootstrap/cache/ && \
+   cp .env.example .env && \
+   php artisan key:generate
+   ```
+
 4. **Set correct permissions**:
    ```bash
    chmod -R 775 storage/
    chmod -R 775 bootstrap/cache/
    ```
 
-5. **Point your domain** to the `public/` folder (very important!)
+5. **Set up environment and generate key**:
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
 
-6. **Access your website** - you should now see the installation page
+5. **Set up environment and generate key**:
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+
+6. **Point your domain** to the `public/` folder (very important!)
+
+7. **Access your website** - you should now see the installation page
 
 ### Option 2: Upload with Pre-built Dependencies
 
