@@ -129,62 +129,7 @@ try {
     }
 }
 
-function showInstallationError($type) {
-    $title = 'Installation Required';
-    $message = '';
-    $instructions = '';
-    
-    switch ($type) {
-        case 'missing_dependencies':
-            $message = 'Dependencies are missing. Please run composer install.';
-            $instructions = '
-                <ol>
-                    <li>Upload all files including composer.json to your hosting</li>
-                    <li>Access your hosting terminal/SSH</li>
-                    <li>Navigate to your website directory</li>
-                    <li>Run: <code>composer install --no-dev</code></li>
-                    <li>Refresh this page</li>
-                </ol>
-            ';
-            break;
-        case 'storage_permissions':
-            $message = 'Storage directory is not writable.';
-            $instructions = '
-                <ol>
-                    <li>Set write permissions on the storage directory</li>
-                    <li>Run: <code>chmod -R 775 storage/</code></li>
-                    <li>Run: <code>chmod -R 775 bootstrap/cache/</code></li>
-                    <li>Refresh this page</li>
-                </ol>
-            ';
-            break;
-    }
-    
-    echo "<!DOCTYPE html>
-    <html>
-    <head>
-        <title>{$title}</title>
-        <style>
-            body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-            .error-box { background: #f8d7da; color: #721c24; padding: 20px; border-radius: 5px; margin: 20px 0; }
-            .instructions { background: #d1ecf1; color: #0c5460; padding: 20px; border-radius: 5px; margin: 20px 0; }
-            code { background: #f8f9fa; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
-            h1 { color: #333; }
-        </style>
-    </head>
-    <body>
-        <h1>🏛️ Council ERP - {$title}</h1>
-        <div class='error-box'>
-            <strong>Setup Required:</strong> {$message}
-        </div>
-        <div class='instructions'>
-            <strong>Installation Steps:</strong>
-            {$instructions}
-            <p><strong>Need help?</strong> Check your hosting provider's documentation for running PHP composer commands.</p>
-        </div>
-    </body>
-    </html>";
-}
+
 
 // Check for common installation issues
 $installationIssues = checkInstallationRequirements();
