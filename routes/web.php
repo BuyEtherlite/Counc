@@ -21,6 +21,17 @@ Route::get('/install', [InstallController::class, 'index'])->name('install.index
 Route::post('/install', [InstallController::class, 'store'])->name('install.store');
 Route::post('/install/test-database', [InstallController::class, 'testDatabase'])->name('install.test-database');
 
+// Demo completion route for testing
+Route::get('/install/demo-complete', function() {
+    $admin = (object) [
+        'name' => 'System Administrator',
+        'email' => 'admin@council.local',
+        'created_at' => now()
+    ];
+    session(['temp_admin_password' => 'SecurePassword123!']);
+    return view('install.complete', compact('admin'));
+})->name('install.demo-complete');
+
 // Authentication routes
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
