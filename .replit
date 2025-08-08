@@ -1,0 +1,8 @@
+modules = ["php-8.2"]
+run = "composer install"
+
+[nix]
+channel = "stable-25_05"
+
+[deployment]
+run = ["sh", "-c", "composer install"]
