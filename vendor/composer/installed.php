@@ -3,7 +3,7 @@
         'name' => 'buyetherlite/counc-erp',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '63cd95a197b4edbcef5e2457dbfaed3788230149',
+        'reference' => '67928ab42bbe23bb11851fbcb742785612580141',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -22,7 +22,7 @@
         'buyetherlite/counc-erp' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '63cd95a197b4edbcef5e2457dbfaed3788230149',
+            'reference' => '67928ab42bbe23bb11851fbcb742785612580141',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
