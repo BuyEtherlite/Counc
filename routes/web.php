@@ -15,12 +15,9 @@ use App\Services\DebugAgent;
 // Installation routes
 Route::middleware(['web'])->group(function () {
     Route::get('/install', [InstallController::class, 'index'])->name('install.index');
-    Route::get('/install/step1', [InstallController::class, 'step1'])->name('install.step1');
-    Route::get('/install/step2', [InstallController::class, 'step2'])->name('install.step2');
-    Route::post('/install/step2', [InstallController::class, 'storeStep2'])->name('install.step2.store');
-    Route::get('/install/step3', [InstallController::class, 'step3'])->name('install.step3');
-    Route::post('/install/complete', [InstallController::class, 'completeInstallation'])->name('install.complete');
-    Route::get('/install/complete', [InstallController::class, 'complete'])->name('install.complete.view');
+    Route::post('/install', [InstallController::class, 'store'])->name('install.store');
+    Route::post('/install/test-database', [InstallController::class, 'testDatabase'])->name('install.test-database');
+    Route::get('/install/complete', [InstallController::class, 'complete'])->name('install.complete');
 });
 
 // Debug routes (only in debug mode)
