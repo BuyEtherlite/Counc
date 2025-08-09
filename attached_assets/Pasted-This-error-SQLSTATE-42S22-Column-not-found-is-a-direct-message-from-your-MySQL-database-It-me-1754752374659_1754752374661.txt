@@ -1,0 +1,61 @@
+This error, `SQLSTATE[42S22]: Column not found`, is a direct message from your MySQL database. It means that your application's code is trying to find a column named **`current_stock`** inside the **`housing_properties`** table, but that column does not exist in the database's structure.
+
+This is a very common issue that happens when your application code is out of sync with your database schema, usually because database migrations have not been run.
+
+-----
+
+### \#\# What's Happening and Why? 🧑‍💻
+
+Think of your Laravel code as a **blueprint** for a house, and your database as the **actual house** that has been built.
+
+1.  **The Blueprint (Your Code):** The file `resources/views/dashboard/index.blade.php` contains a piece of code that counts properties needing a restock: `Property::whereRaw('current_stock <= minimum_stock')->count()`. This code assumes the `housing_properties` table (the building) has a "room" called `current_stock`.
+2.  **The Building (Your Database):** When Laravel executes this query, it sends the request to MySQL.
+3.  **The Error:** The database looks at the `housing_properties` table structure and reports back: "I can't complete this request because there is no column here called `current_stock`."
+
+This mismatch usually happens after a fresh installation of an application or after pulling new code updates, where the instructions to create or modify the database tables (**migrations**) have not been executed.
+
+-----
+
+### \#\# How to Fix It 🛠️
+
+You need to update your database schema to match what the code expects. The standard way to do this in Laravel is by running migrations.
+
+#### 1\. Run Your Database Migrations (Primary Solution)
+
+Connect to your server via SSH or open a terminal in your project's root directory and run the following Laravel Artisan command:
+
+```bash
+php artisan migrate
+```
+
+This command reads all the migration files in your `database/migrations` folder and makes the necessary changes to your database, such as creating tables and adding columns like `current_stock`.
+
+> **Warning:** If you have important data in your database already, it's always wise to **create a backup** before running migrations, just in case. For a fresh installation, this is perfectly safe.
+
+#### 2\. Check the Migration Files
+
+If running `migrate` doesn't solve it, you should verify that the migration to create the column exists.
+
+  * Look inside your project's `database/migrations/` folder.
+  * Find the file responsible for the `housing_properties` table. It might be named something like `..._create_housing_properties_table.php` or `..._add_stock_columns_to_housing_properties_table.php`.
+  * Open the file and look inside the `up()` method. You should see a line that defines the column, for example:
+
+<!-- end list -->
+
+```php
+// Inside a Schema::create() or Schema::table() block
+$table->integer('current_stock')->default(0);
+$table->integer('minimum_stock')->default(0);
+```
+
+If these lines are missing from the migration file, then the application's source code itself may be incomplete or corrupted.
+
+#### 3\. For a Fresh, Non-Production Installation
+
+If this is a brand new setup and you have no data to lose, you can use a more powerful command to drop all tables and rebuild the database from scratch. The `--seed` flag will also run any database seeders to populate the tables with initial data.
+
+> **DANGER:** This command will **DELETE ALL DATA** in your database. Do not run this in a production environment.
+
+```bash
+php artisan migrate:fresh --seed
+```
