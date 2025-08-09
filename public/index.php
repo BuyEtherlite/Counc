@@ -94,15 +94,20 @@ if (!file_exists(__DIR__.'/../vendor/autoload.php')) {
 }
 
 // Check if .env exists, create basic one if not
-if (!file_exists(__DIR__.'/../.env')) {
+$envPath = __DIR__.'/../.env';
+if (!file_exists($envPath)) {
     $envContent = "APP_NAME=\"Council ERP\"\n";
-    $envContent .= "APP_ENV=local\n";
-    $envContent .= "APP_DEBUG=true\n";
+    $envContent .= "APP_ENV=production\n";
+    $envContent .= "APP_DEBUG=false\n";
     $envContent .= "APP_KEY=\n";
-    $envContent .= "APP_URL=http://localhost:5000\n\n";
+    $envContent .= "APP_URL=https://council-erp.replit.app\n\n";
     $envContent .= "DB_CONNECTION=sqlite\n";
     $envContent .= "DB_DATABASE=database/database.sqlite\n";
-    @file_put_contents(__DIR__.'/../.env', $envContent);
+    
+    // Ensure the directory is writable
+    if (is_writable(dirname($envPath))) {
+        @file_put_contents($envPath, $envContent);
+    }
 }
 
 // Determine if the application is in maintenance mode...
