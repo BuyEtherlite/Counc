@@ -7,14 +7,8 @@
     <div class="col-md-12">
         <div class="card install-card">
             <div class="card-body p-5">
-                <div class="step-indicator">
-                    <div class="step active">1</div>
-                    <div class="step">2</div>
-                    <div class="step">3</div>
-                </div>
-
                 <h2 class="text-center mb-4">🚀 Council ERP Installation</h2>
-                
+
                 @if ($errors->any())
                     <div class="alert alert-danger">
                         <h6 class="alert-heading">❌ Please fix the following issues:</h6>
@@ -37,7 +31,7 @@
                     <div class="col-12">
                         <h4 class="border-bottom pb-2">🔍 System Requirements</h4>
                         <p class="text-muted">Please ensure your system meets the following requirements:</p>
-                        
+
                         @if(!collect($requirements)->every('status'))
                             <div class="alert alert-info">
                                 <h6 class="alert-heading">💡 First time deploying to hosting?</h6>
@@ -47,28 +41,29 @@
                                     <a href="#deployment-help" data-bs-toggle="collapse" class="ms-2">View deployment guide</a>
                                 </p>
                             </div>
-                            
+
                             <div class="collapse" id="deployment-help">
                                 <div class="card bg-light">
                                     <div class="card-body">
-                                        <h6>🚀 Quick Deployment Fix</h6>
+                                        <h6>🚀 Quick Deployment Fix for NameCheap</h6>
                                         <ol class="mb-2">
-                                            <li>Access your hosting control panel or SSH</li>
-                                            <li>Navigate to your website directory</li>
+                                            <li>Access your cPanel File Manager</li>
+                                            <li>Navigate to your public_html/game.rhinotap.net directory</li>
+                                            <li>Open Terminal in cPanel</li>
+                                            <li>Run: <code>cd public_html/game.rhinotap.net</code></li>
                                             <li>Run: <code>composer install --no-dev</code></li>
                                             <li>Set permissions: <code>chmod -R 775 storage/ bootstrap/cache/</code></li>
                                             <li>Refresh this page</li>
                                         </ol>
                                         <p class="small mb-0">
-                                            <strong>Need detailed help?</strong> See <a href="{{ asset('DEPLOYMENT.md') }}" target="_blank">DEPLOYMENT.md</a> 
-                                            or contact your hosting provider's support.
+                                            <strong>Need help?</strong> Contact NameCheap support if you can't access terminal.
                                         </p>
                                     </div>
                                 </div>
                             </div>
                         @endif
                     </div>
-                    
+
                     <div class="col-md-6">
                         <h6>PHP Requirements</h6>
                         <div class="requirements-list">
@@ -82,7 +77,7 @@
                             @endforeach
                         </div>
                     </div>
-                    
+
                     <div class="col-md-6">
                         <h6>Folder Permissions</h6>
                         <div class="permissions-list">
@@ -111,7 +106,7 @@
 
                 <form method="POST" action="{{ route('install.store') }}" id="installForm" {{ !$allRequirementsMet ? 'style=display:none' : '' }}>
                     @csrf
-                    
+
                     <!-- Site Settings -->
                     <div class="row mb-4">
                         <div class="col-12">
@@ -133,12 +128,13 @@
                     <div class="row mb-4">
                         <div class="col-12">
                             <h4 class="border-bottom pb-2">🗄️ Database Settings</h4>
-                            <p class="text-muted">Enter your database connection details below:</p>
+                            <p class="text-muted">Enter your NameCheap MySQL database connection details:</p>
                         </div>
                         <div class="col-md-6">
                             <label for="db_host" class="form-label">Database Host *</label>
                             <input type="text" class="form-control" id="db_host" name="db_host" 
-                                   value="{{ old('db_host', '127.0.0.1') }}" required>
+                                   value="{{ old('db_host', 'localhost') }}" required>
+                            <small class="text-muted">Usually 'localhost' for NameCheap</small>
                         </div>
                         <div class="col-md-6">
                             <label for="db_port" class="form-label">Database Port *</label>
@@ -149,11 +145,12 @@
                             <label for="db_database" class="form-label">Database Name *</label>
                             <input type="text" class="form-control" id="db_database" name="db_database" 
                                    value="{{ old('db_database', 'council_erp') }}" required>
+                            <small class="text-muted">Create this database in your cPanel first</small>
                         </div>
                         <div class="col-md-6">
                             <label for="db_username" class="form-label">Database Username *</label>
                             <input type="text" class="form-control" id="db_username" name="db_username" 
-                                   value="{{ old('db_username', 'root') }}" required>
+                                   value="{{ old('db_username') }}" required>
                         </div>
                         <div class="col-md-8">
                             <label for="db_password" class="form-label">Database Password</label>
@@ -310,50 +307,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Handle form submission
-    installForm?.addEventListener('submit', function(e) {
+    installForm.addEventListener('submit', function(e) {
         if (!dbConnectionTested) {
             e.preventDefault();
             showDbResult('Please test the database connection first.', 'warning');
             return;
         }
 
-        // Validate required fields
-        const requiredFields = ['site_name', 'admin_name', 'admin_email', 'admin_password', 'admin_password_confirmation', 'council_name', 'council_address', 'council_contact'];
-        let hasErrors = false;
-
-        requiredFields.forEach(fieldName => {
-            const field = document.getElementById(fieldName);
-            if (field && !field.value.trim()) {
-                field.classList.add('is-invalid');
-                hasErrors = true;
-            } else if (field) {
-                field.classList.remove('is-invalid');
-            }
-        });
-
-        // Check password confirmation
-        const password = document.getElementById('admin_password').value;
-        const confirmPassword = document.getElementById('admin_password_confirmation').value;
-        
-        if (password !== confirmPassword) {
-            document.getElementById('admin_password_confirmation').classList.add('is-invalid');
-            showDbResult('Passwords do not match.', 'danger');
-            hasErrors = true;
-        }
-
-        if (hasErrors) {
-            e.preventDefault();
-            return;
-        }
-
-        // Show loading state during installation
+        // Show loading state during form submission
         installButton.disabled = true;
         document.getElementById('installText').textContent = 'Installing...';
         document.getElementById('installSpinner').style.display = 'inline-block';
-        
-        // Disable all form inputs to prevent changes
-        const formInputs = installForm.querySelectorAll('input, button, textarea');
-        formInputs.forEach(input => input.disabled = true);
     });
 
     // Reset database test status when fields change
@@ -379,11 +343,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function hideDbResult() {
         document.getElementById('dbTestResult').style.display = 'none';
     }
-
-    // Show install form if requirements are met
-    @if($allRequirementsMet)
-        document.getElementById('installForm').style.display = 'block';
-    @endif
 });
 </script>
 @endsection

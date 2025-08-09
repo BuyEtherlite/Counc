@@ -5,6 +5,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InstallController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\DepartmentController;
+use App\Http\Controllers\Admin\OfficeController;
 use App\Http\Controllers\Housing\PropertyController;
 use App\Http\Controllers\Housing\HousingApplicationController;
 use App\Http\Controllers\Housing\WaitingListController;
@@ -62,13 +64,15 @@ Route::middleware(['ensure.installed'])->group(function () {
         // Admin routes
         Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
             Route::resource('users', UserController::class);
+            Route::resource('departments', DepartmentController::class);
+            Route::resource('offices', OfficeController::class);
         });
 
         // Housing routes
         Route::prefix('housing')->name('housing.')->group(function () {
-            Route::resource('properties', PropertyController::class);
             Route::resource('applications', HousingApplicationController::class);
-            Route::resource('waiting-list', WaitingListController::class);
+            Route::resource('properties', PropertyController::class);
+            Route::get('/waiting-list', [WaitingListController::class, 'index'])->name('waiting-list.index');
         });
     });
 });
