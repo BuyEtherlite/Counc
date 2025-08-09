@@ -53,14 +53,9 @@ class InstallController extends Controller
 
     public function storeStep2(Request $request)
     {
-        // Ensure storage directories exist
+        // Ensure storage directories exist with proper permissions
         $this->ensureStorageDirectories();
         
-        // Start session explicitly if not started
-        if (!session()->isStarted()) {
-            session()->start();
-        }
-
         // Validate step 2 data
         $validated = $request->validate([
             'site_name' => 'required|string|max:255',
@@ -125,23 +120,25 @@ class InstallController extends Controller
 
             \Log::info('Database migrations completed successfully');
 
-            // Store step 2 data in session - use multiple methods to ensure persistence
+            // Store step 2 data in session and also in a temporary file for persistence
             $sessionData = [
                 'site_name' => $validated['site_name'],
                 'site_description' => $validated['site_description'] ?? '',
-                'completed_at' => now()->timestamp
+                'completed_at' => now()->timestamp,
+                'db_host' => $validated['db_host'],
+                'db_port' => $validated['db_port'],
+                'db_database' => $validated['db_database'],
+                'db_username' => $validated['db_username']
             ];
 
-            $request->session()->put('install_step2_data', $sessionData);
-            $request->session()->put('install_db_configured', true);
-            $request->session()->put('install_progress', 'step2_completed');
-
-            // Flash data as well for immediate use
-            $request->session()->flash('install_step2_completed', true);
-
-            // Force session save and regenerate ID to prevent conflicts
-            $request->session()->save();
-            $request->session()->regenerate();
+            // Store in session
+            session(['install_step2_data' => $sessionData]);
+            session(['install_db_configured' => true]);
+            session(['install_progress' => 'step2_completed']);
+            
+            // Also store in a temporary file for fallback
+            $tempFile = storage_path('app/install_progress.json');
+            file_put_contents($tempFile, json_encode($sessionData));
 
             \Log::info('Session data stored successfully: ' . json_encode($sessionData));
             \Log::info('Redirecting to step 3...');
@@ -170,30 +167,32 @@ class InstallController extends Controller
         // Ensure storage directories exist
         $this->ensureStorageDirectories();
 
-        // Start session explicitly if not started
-        if (!session()->isStarted()) {
-            session()->start();
-        }
-
-        // Check if step 2 was completed - check multiple session keys
+        // Check if step 2 was completed - check session and fallback file
         $step2Data = session('install_step2_data');
         $dbConfigured = session('install_db_configured');
-        $installProgress = session('install_progress');
-        $step2Completed = session('install_step2_completed');
+        
+        // Fallback to temp file if session data is missing
+        $tempFile = storage_path('app/install_progress.json');
+        if (!$step2Data && file_exists($tempFile)) {
+            $fileData = json_decode(file_get_contents($tempFile), true);
+            if ($fileData) {
+                $step2Data = $fileData;
+                session(['install_step2_data' => $step2Data]);
+                session(['install_db_configured' => true]);
+                $dbConfigured = true;
+            }
+        }
 
         \Log::info('Step 3 session check:', [
-            'step2_data' => $step2Data,
+            'step2_data' => $step2Data ? 'exists' : 'missing',
             'db_configured' => $dbConfigured,
-            'install_progress' => $installProgress,
-            'step2_completed' => $step2Completed,
             'session_id' => session()->getId()
         ]);
 
-        if (!$step2Data && !$dbConfigured && !$step2Completed) {
+        if (!$step2Data && !$dbConfigured) {
             \Log::warning('Step 2 not completed, redirecting back');
             return redirect()->route('install.step2')
-                ->withErrors(['error' => 'Please complete database configuration first.'])
-                ->with('warning', 'Session data missing. Please complete the database setup again.');
+                ->withErrors(['error' => 'Please complete database configuration first.']);
         }
 
         // Verify database connection is still working
@@ -267,8 +266,14 @@ class InstallController extends Controller
             // Mark installation as complete
             $this->markInstallationComplete();
 
-            // Clear installation session data
+            // Clear installation session data and temp files
             session()->forget(['install_step2_data', 'install_db_configured', 'install_progress']);
+            
+            // Remove temporary installation files
+            $tempFile = storage_path('app/install_progress.json');
+            if (file_exists($tempFile)) {
+                @unlink($tempFile);
+            }
 
             \Log::info('Installation completed successfully');
 
@@ -393,17 +398,31 @@ class InstallController extends Controller
     {
         $directories = [
             'storage/framework/sessions',
-            'storage/framework/cache', 
+            'storage/framework/cache/data',
             'storage/framework/views',
             'storage/app/public',
-            'storage/logs'
+            'storage/logs',
+            'bootstrap/cache'
         ];
 
         foreach ($directories as $dir) {
             $fullPath = base_path($dir);
             if (!is_dir($fullPath)) {
-                @mkdir($fullPath, 0775, true);
+                if (!@mkdir($fullPath, 0755, true)) {
+                    \Log::warning("Failed to create directory: {$fullPath}");
+                } else {
+                    @chmod($fullPath, 0755);
+                }
+            } else {
+                // Ensure proper permissions
+                @chmod($fullPath, 0755);
             }
+        }
+
+        // Ensure bootstrap/cache has proper permissions
+        $bootstrapCache = base_path('bootstrap/cache');
+        if (is_dir($bootstrapCache)) {
+            @chmod($bootstrapCache, 0755);
         }
     }
 
