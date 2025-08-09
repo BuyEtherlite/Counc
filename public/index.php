@@ -1,8 +1,9 @@
+
 <?php
 
-use Illuminate\Http\Request;
-
 define('LARAVEL_START', microtime(true));
+
+use Illuminate\Http\Request;
 
 // Pre-bootstrap installation checks
 function checkInstallationRequirements() {
