@@ -1,58 +1,68 @@
+
 <?php
 
 namespace App\Models\Housing;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Property extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
+    protected $table = 'housing_properties';
 
     protected $fillable = [
-        'property_number',
-        'property_type',
+        'property_code',
         'address',
         'suburb',
+        'city',
+        'postal_code',
+        'property_type',
         'bedrooms',
         'bathrooms',
         'size_sqm',
         'rental_amount',
+        'deposit_amount',
         'status',
         'description',
         'amenities',
-        'accessibility_features',
-        'office_id',
-        'gps_coordinates',
-        'property_condition',
-        'last_inspection_date',
-        'next_inspection_due',
+        'coordinates',
+        'maintenance_notes',
+        'council_id',
+        'department_id',
+        'office_id'
     ];
 
     protected $casts = [
-        'bedrooms' => 'integer',
-        'bathrooms' => 'integer',
-        'size_sqm' => 'decimal:2',
-        'rental_amount' => 'decimal:2',
         'amenities' => 'array',
-        'accessibility_features' => 'array',
-        'last_inspection_date' => 'date',
-        'next_inspection_due' => 'date',
+        'coordinates' => 'array',
+        'rental_amount' => 'decimal:2',
+        'deposit_amount' => 'decimal:2',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime'
     ];
 
-    // Status constants
     const STATUS_AVAILABLE = 'available';
     const STATUS_OCCUPIED = 'occupied';
-    const STATUS_MAINTENANCE = 'under_maintenance';
-    const STATUS_RENOVATION = 'under_renovation';
-    const STATUS_CONDEMNED = 'condemned';
+    const STATUS_MAINTENANCE = 'maintenance';
+    const STATUS_RESERVED = 'reserved';
 
-    // Property type constants
     const TYPE_HOUSE = 'house';
-    const TYPE_APARTMENT = 'apartment';
-    const TYPE_TOWNHOUSE = 'townhouse';
     const TYPE_FLAT = 'flat';
-    const TYPE_STUDIO = 'studio';
+    const TYPE_TOWNHOUSE = 'townhouse';
+    const TYPE_ROOM = 'room';
+
+    public function council()
+    {
+        return $this->belongsTo(\App\Models\Council::class);
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(\App\Models\Department::class);
+    }
 
     public function office()
     {
@@ -66,30 +76,12 @@ class Property extends Model
 
     public function currentAllocation()
     {
-        return $this->hasOne(Allocation::class)->where('status', 'active')->latest();
+        return $this->hasOne(Allocation::class)->where('status', 'active');
     }
 
-    public function maintenanceRecords()
+    public function maintenanceRequests()
     {
-        return $this->hasMany(MaintenanceRecord::class);
-    }
-
-    public function getStatusBadgeAttribute()
-    {
-        $colors = [
-            'available' => 'success',
-            'occupied' => 'primary',
-            'under_maintenance' => 'warning',
-            'under_renovation' => 'info',
-            'condemned' => 'danger',
-        ];
-
-        return $colors[$this->status] ?? 'secondary';
-    }
-
-    public function getFullAddressAttribute()
-    {
-        return $this->address . ', ' . $this->suburb;
+        return $this->hasMany(\App\Models\MaintenanceRequest::class);
     }
 
     public function isAvailable()
@@ -102,8 +94,19 @@ class Property extends Model
         return $this->status === self::STATUS_OCCUPIED;
     }
 
-    public function needsInspection()
+    public function getStatusColorAttribute()
     {
-        return $this->next_inspection_due && $this->next_inspection_due->isPast();
+        return match($this->status) {
+            self::STATUS_AVAILABLE => 'success',
+            self::STATUS_OCCUPIED => 'primary',
+            self::STATUS_MAINTENANCE => 'warning',
+            self::STATUS_RESERVED => 'info',
+            default => 'secondary'
+        };
+    }
+
+    public function getFormattedAddressAttribute()
+    {
+        return $this->address . ', ' . $this->suburb . ', ' . $this->city . ' ' . $this->postal_code;
     }
 }

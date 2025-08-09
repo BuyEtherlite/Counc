@@ -11,6 +11,9 @@ use App\Http\Controllers\Housing\PropertyController;
 use App\Http\Controllers\Housing\HousingApplicationController;
 use App\Http\Controllers\Housing\WaitingListController;
 use App\Services\DebugAgent;
+use App\Http\Controllers\Finance\FinanceController;
+use App\Http\Controllers\Inventory\InventoryController;
+
 
 // Installation routes
 Route::middleware(['web'])->group(function () {
@@ -70,6 +73,7 @@ Route::middleware(['ensure.installed'])->group(function () {
         Route::prefix('housing')->name('housing.')->group(function () {
             Route::resource('applications', HousingApplicationController::class);
             Route::resource('properties', PropertyController::class);
+            Route::post('/properties/{property}/allocate', [PropertyController::class, 'allocate'])->name('properties.allocate');
             Route::get('/waiting-list', [WaitingListController::class, 'index'])->name('waiting-list.index');
         });
 
@@ -123,19 +127,29 @@ Route::middleware(['ensure.installed'])->group(function () {
 
         // Finance routes
         Route::prefix('finance')->name('finance.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Finance\FinanceController::class, 'index'])->name('index');
-            Route::get('/budget', [\App\Http\Controllers\Finance\FinanceController::class, 'budget'])->name('budget');
-            Route::get('/revenue', [\App\Http\Controllers\Finance\FinanceController::class, 'revenue'])->name('revenue');
-            Route::get('/expenses', [\App\Http\Controllers\Finance\FinanceController::class, 'expenses'])->name('expenses');
-            Route::get('/reports', [\App\Http\Controllers\Finance\FinanceController::class, 'reports'])->name('reports');
+            Route::get('/', [FinanceController::class, 'index'])->name('index');
+            Route::get('/invoices', [FinanceController::class, 'invoices'])->name('invoices');
+            Route::get('/invoices/create', [FinanceController::class, 'createInvoice'])->name('create-invoice');
+            Route::post('/invoices', [FinanceController::class, 'storeInvoice'])->name('store-invoice');
+            Route::get('/invoices/{invoice}', [FinanceController::class, 'showInvoice'])->name('show-invoice');
+            Route::post('/invoices/{invoice}/mark-paid', [FinanceController::class, 'markAsPaid'])->name('mark-as-paid');
+            Route::get('/reports', [FinanceController::class, 'reports'])->name('reports');
         });
 
         // Inventory routes
         Route::prefix('inventory')->name('inventory.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Inventory\InventoryController::class, 'index'])->name('index');
-            Route::get('/items', [\App\Http\Controllers\Inventory\InventoryController::class, 'items'])->name('items');
-            Route::get('/stock', [\App\Http\Controllers\Inventory\InventoryController::class, 'stock'])->name('stock');
-            Route::get('/suppliers', [\App\Http\Controllers\Inventory\InventoryController::class, 'suppliers'])->name('suppliers');
+            Route::get('/', [InventoryController::class, 'index'])->name('index');
+            Route::get('/create', [InventoryController::class, 'create'])->name('create');
+            Route::post('/', [InventoryController::class, 'store'])->name('store');
+            Route::get('/{item}', [InventoryController::class, 'show'])->name('show');
+            Route::get('/{item}/edit', [InventoryController::class, 'edit'])->name('edit');
+            Route::put('/{item}', [InventoryController::class, 'update'])->name('update');
+            Route::delete('/{item}', [InventoryController::class, 'destroy'])->name('destroy');
+            Route::post('/{item}/stock-in', [InventoryController::class, 'stockIn'])->name('stock-in');
+            Route::post('/{item}/stock-out', [InventoryController::class, 'stockOut'])->name('stock-out');
+            Route::get('/reports/low-stock', [InventoryController::class, 'lowStock'])->name('low-stock');
+            Route::get('/reports/expiring', [InventoryController::class, 'expiringItems'])->name('expiring');
+            Route::get('/reports/full', [InventoryController::class, 'reports'])->name('reports');
         });
 
         // Committee Administration routes
