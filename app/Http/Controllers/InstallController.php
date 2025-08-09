@@ -53,6 +53,9 @@ class InstallController extends Controller
 
     public function storeStep2(Request $request)
     {
+        // Ensure storage directories exist
+        $this->ensureStorageDirectories();
+        
         // Start session explicitly if not started
         if (!session()->isStarted()) {
             session()->start();
@@ -163,6 +166,9 @@ class InstallController extends Controller
         if ($this->isInstalled()) {
             return redirect('/')->with('message', 'System is already installed.');
         }
+
+        // Ensure storage directories exist
+        $this->ensureStorageDirectories();
 
         // Start session explicitly if not started
         if (!session()->isStarted()) {
@@ -280,6 +286,12 @@ class InstallController extends Controller
     private function testDatabaseConnection($request)
     {
         try {
+            // First test if we can connect to MySQL server
+            $dsn = "mysql:host={$request->db_host};port={$request->db_port}";
+            $testConnection = new \PDO($dsn, $request->db_username, $request->db_password);
+            $testConnection = null;
+
+            // Then test if database exists, create if not
             $connection = [
                 'driver' => 'mysql',
                 'host' => $request->db_host,
@@ -292,10 +304,22 @@ class InstallController extends Controller
                 'prefix' => '',
                 'strict' => true,
                 'engine' => null,
+                'options' => [
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                ],
             ];
 
             config(['database.connections.test_connection' => $connection]);
             DB::connection('test_connection')->getPdo();
+            
+            // Try to create database if it doesn't exist
+            try {
+                DB::connection('test_connection')->statement("CREATE DATABASE IF NOT EXISTS `{$request->db_database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            } catch (\Exception $e) {
+                // Database might already exist, that's okay
+                \Log::info('Database creation attempted: ' . $e->getMessage());
+            }
+            
             DB::purge('test_connection');
         } catch (\Exception $e) {
             throw new \Exception('Database connection failed: ' . $e->getMessage());
@@ -362,6 +386,24 @@ class InstallController extends Controller
             $key = 'base64:' . base64_encode(random_bytes(32));
             $env = preg_replace('/^APP_KEY=.*$/m', 'APP_KEY=' . $key, $env);
             file_put_contents($envFile, $env);
+        }
+    }
+
+    private function ensureStorageDirectories()
+    {
+        $directories = [
+            'storage/framework/sessions',
+            'storage/framework/cache', 
+            'storage/framework/views',
+            'storage/app/public',
+            'storage/logs'
+        ];
+
+        foreach ($directories as $dir) {
+            $fullPath = base_path($dir);
+            if (!is_dir($fullPath)) {
+                @mkdir($fullPath, 0775, true);
+            }
         }
     }
 

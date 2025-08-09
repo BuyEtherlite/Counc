@@ -33,7 +33,8 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('install.complete') }}">
+                <form method="POST" action="{{ route('install.complete') }}" id="finalForm">
+                    @csrf
 
                     <!-- Admin User Settings -->
                     <div class="row mb-4">
