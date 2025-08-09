@@ -10,13 +10,14 @@ return new class extends Migration
     {
         Schema::create('councils', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->text('address');
-            $table->text('contact_info');
-            $table->string('website')->nullable();
-            $table->string('logo')->nullable();
-            $table->boolean('is_primary')->default(false);
-            $table->json('settings')->nullable();
+            $table->string('name', 191);
+            $table->string('code', 191)->unique();
+            $table->text('description')->nullable();
+            $table->string('address', 191);
+            $table->string('phone', 191);
+            $table->string('email', 191);
+            $table->string('website', 191)->nullable();
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }
