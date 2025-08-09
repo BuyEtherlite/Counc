@@ -1,0 +1,82 @@
+This error message is straightforward: the SQL query failed because a column named **`current_stock` does not exist** in your `housing_properties` table.
+
+The database received a command to find all rows `where current_stock <= minimum_stock`, but when it looked at the structure of the `housing_properties` table, it couldn't find a column with that exact name.
+
+-----
+
+### \#\# 🧐 Root Causes and How to Fix It
+
+Here are the most common reasons for this error and the steps to resolve it.
+
+#### 1\. Typo in the Column Name
+
+This is the most frequent cause. The column might exist but with a slightly different name.
+
+  * **Your Code Expects:** `current_stock`
+  * **The Database Might Have:** `stock`, `currentStock`, `stock_level`, `current_inventory`, etc.
+
+**Solution:**
+
+1.  **Inspect your database schema.** Log into your MySQL database and run the following command to see the exact column names in your `housing_properties` table:
+    ```sql
+    DESCRIBE housing_properties;
+    ```
+2.  **Correct your code.** Based on the output, find the correct column name and update your Laravel query. The error trace points to `resources/views/dashboard/index.blade.php` on line 84, which is likely where the query is being executed or where a variable from the query is being used. Look in the corresponding controller method that serves this view for the query itself, which probably looks something like this:
+    ```php
+    // In your controller
+    $properties = HousingProperty::where('current_stock', '<=', DB::raw('minimum_stock'))->count(); 
+    ```
+    Change `'current_stock'` to the correct column name.
+
+#### 2\. Missing Database Migration
+
+You may have added the `current_stock` column to your code (e.g., in a model or a new feature) but forgotten to run the database migration to add the column to the actual database table.
+
+**Solution:**
+
+1.  **Check your migrations folder** (`database/migrations/`) to ensure a migration file exists to add the `current_stock` column.
+2.  **Run your migrations.** Open your terminal in the project root and run the Artisan command:
+    ```bash
+    php artisan migrate
+    ```
+3.  You can check the status of your migrations first to see which ones haven't run yet with `php artisan migrate:status`.
+
+#### 3\. It's an Accessor, Not a Real Column
+
+In Laravel, you can define "computed" properties on a model called **Accessors**. For example, you might have a method in your `HousingProperty` model like this:
+
+```php
+// In App\Models\HousingProperty.php
+use Illuminate\Database\Eloquent\Casts\Attribute;
+
+protected function currentStock(): Attribute
+{
+    return Attribute::make(
+        get: fn ($value) => $this->someCalculation(), // Calculates stock on the fly
+    );
+}
+```
+
+You can call `$property->current_stock` in your PHP code, but **`current_stock` does not exist as a column in the database**. You cannot use it directly in a `WHERE` clause because the database has no knowledge of your PHP accessor logic.
+
+**Solution:**
+You need to rewrite your query to perform the calculation using raw database expressions or filter after fetching the results (which is less efficient). If the logic is complex, you may need to use `whereRaw()` to express the calculation in SQL.
+
+For example, if `current_stock` is the result of `total_units - occupied_units`, you would change the query:
+
+```php
+// Change this:
+HousingProperty::where('current_stock', '<=', DB::raw('minimum_stock'))
+
+// To this:
+HousingProperty::whereRaw('(total_units - occupied_units) <= minimum_stock') 
+```
+
+-----
+
+### \#\# 🛠️ Recommended Action Plan
+
+1.  **Start by running `DESCRIBE housing_properties;`** in your database to confirm the exact column names. This will quickly validate or invalidate the "Typo" and "Missing Migration" theories.
+2.  If the column is missing, **run `php artisan migrate`**.
+3.  If the column exists but has a different name, **correct the name in your controller/query code**.
+4.  If the column doesn't exist and is not supposed to be in the database, it's likely an **accessor**, and you'll need to rewrite the query logic as shown above.

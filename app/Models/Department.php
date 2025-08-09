@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Models;
@@ -11,10 +12,11 @@ class Department extends Model
 
     protected $fillable = [
         'name',
+        'code',
         'description',
         'council_id',
         'is_active',
-        'modules_access',
+        'modules_access'
     ];
 
     protected $casts = [
@@ -27,13 +29,13 @@ class Department extends Model
         return $this->belongsTo(Council::class);
     }
 
-    public function users()
-    {
-        return $this->hasMany(User::class);
-    }
-
     public function offices()
     {
         return $this->hasMany(Office::class);
+    }
+
+    public function users()
+    {
+        return $this->hasMany(User::class);
     }
 }

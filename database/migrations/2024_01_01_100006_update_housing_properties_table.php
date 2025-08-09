@@ -1,4 +1,3 @@
-
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -28,6 +27,17 @@ return new class extends Migration
             $table->foreignId('council_id')->constrained()->onDelete('cascade')->after('maintenance_notes');
             $table->foreignId('department_id')->constrained()->onDelete('cascade')->after('council_id');
             $table->foreignId('office_id')->constrained()->onDelete('cascade')->after('department_id');
+
+            // Add inventory tracking columns
+            $table->integer('current_stock')->default(0)->after('office_id');
+            $table->integer('minimum_stock')->default(0)->after('current_stock');
+            $table->string('supplier')->nullable()->after('minimum_stock');
+            $table->decimal('unit_cost', 10, 2)->nullable()->after('supplier');
+
+            // Add indexes for performance
+            $table->index(['current_stock', 'minimum_stock']);
+            $table->index('status');
+
             $table->softDeletes();
             
             // Remove old columns if they exist
@@ -38,6 +48,10 @@ return new class extends Migration
     public function down()
     {
         Schema::table('housing_properties', function (Blueprint $table) {
+            $table->dropIndex(['current_stock', 'minimum_stock']);
+            $table->dropIndex(['status']);
+            $table->dropColumn(['current_stock', 'minimum_stock', 'supplier', 'unit_cost']);
+
             $table->dropColumn([
                 'property_code', 'suburb', 'city', 'postal_code', 'property_type',
                 'bedrooms', 'bathrooms', 'size_sqm', 'rental_amount', 'deposit_amount',
