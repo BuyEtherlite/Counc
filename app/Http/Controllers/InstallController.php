@@ -54,7 +54,7 @@ class InstallController extends Controller
     public function storeStep2(Request $request)
     {
         // Validate step 2 data
-        $request->validate([
+        $validated = $request->validate([
             'site_name' => 'required|string|max:255',
             'site_description' => 'nullable|string',
             'db_host' => 'required|string',
@@ -74,21 +74,9 @@ class InstallController extends Controller
             // Clear all config and cache (with error handling)
             try {
                 Artisan::call('config:clear');
-            } catch (\Exception $e) {
-                \Log::warning('Config clear failed during installation: ' . $e->getMessage());
-            }
-            
-            try {
                 Artisan::call('cache:clear');
             } catch (\Exception $e) {
-                \Log::warning('Cache clear failed during installation: ' . $e->getMessage());
-                // Try to create cache table if it doesn't exist
-                try {
-                    Artisan::call('cache:table');
-                    Artisan::call('migrate', ['--force' => true, '--path' => 'database/migrations/*cache*']);
-                } catch (\Exception $cacheTableException) {
-                    \Log::warning('Cache table creation failed: ' . $cacheTableException->getMessage());
-                }
+                \Log::warning('Cache/config clear failed during installation: ' . $e->getMessage());
             }
             
             // Force reload the configuration
@@ -109,17 +97,9 @@ class InstallController extends Controller
             // Test the connection again after reconnection
             try {
                 DB::connection('mysql')->getPdo();
+                \Log::info('Database connection successful');
             } catch (\Exception $e) {
                 throw new \Exception('Failed to connect to database after configuration: ' . $e->getMessage());
-            }
-
-            // Create cache table first (if using database cache)
-            try {
-                \Log::info('Creating cache table...');
-                Artisan::call('cache:table', ['--force' => true]);
-                \Log::info('Cache table creation command completed');
-            } catch (\Exception $e) {
-                \Log::warning('Cache table creation failed: ' . $e->getMessage());
             }
 
             // Run migrations with force flag
@@ -131,19 +111,27 @@ class InstallController extends Controller
             
             if ($exitCode !== 0) {
                 $output = Artisan::output();
+                \Log::error('Migration output: ' . $output);
                 throw new \Exception('Migration failed: ' . $output);
             }
             
             \Log::info('Database migrations completed successfully');
 
-            // Store step 2 data in session for step 3
-            session([
-                'install_step2_data' => $request->only(['site_name', 'site_description']),
-                'install_db_configured' => true
+            // Store step 2 data in session for step 3 - make sure session is saved
+            $request->session()->put('install_step2_data', [
+                'site_name' => $validated['site_name'],
+                'site_description' => $validated['site_description'] ?? ''
             ]);
+            $request->session()->put('install_db_configured', true);
+            $request->session()->save(); // Force session save
+
+            \Log::info('Session data stored, redirecting to step 3');
 
             return redirect()->route('install.step3')->with('success', 'Database configured and migrated successfully! Please complete the final step.');
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation failed: ' . json_encode($e->errors()));
+            return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
             \Log::error('Step 2 installation failed: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());

@@ -182,10 +182,38 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Validate required fields
+        const requiredFields = ['site_name', 'db_host', 'db_port', 'db_database', 'db_username'];
+        let hasErrors = false;
+
+        requiredFields.forEach(fieldName => {
+            const field = document.getElementById(fieldName);
+            if (field && !field.value.trim()) {
+                field.classList.add('is-invalid');
+                hasErrors = true;
+            } else if (field) {
+                field.classList.remove('is-invalid');
+            }
+        });
+
+        if (hasErrors) {
+            e.preventDefault();
+            showDbResult('Please fill in all required fields.', 'danger');
+            return;
+        }
+
         // Show loading state during form submission
         continueButton.disabled = true;
-        document.getElementById('continueText').textContent = 'Processing...';
+        document.getElementById('continueText').textContent = 'Setting up database...';
         document.getElementById('continueSpinner').style.display = 'inline-block';
+        
+        // Disable all form inputs to prevent changes during submission
+        const formInputs = databaseForm.querySelectorAll('input, button');
+        formInputs.forEach(input => {
+            if (input !== continueButton) {
+                input.disabled = true;
+            }
+        });
     });
 
     // Reset database test status when fields change
