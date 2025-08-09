@@ -23,9 +23,13 @@ Route::get('/', function () {
 // Installation routes
 Route::prefix('install')->group(function () {
     Route::get('/', [InstallController::class, 'index'])->name('install.index');
-    Route::post('/', [InstallController::class, 'store'])->name('install.store');
+    Route::get('/step1', [InstallController::class, 'step1'])->name('install.step1');
+    Route::get('/step2', [InstallController::class, 'step2'])->name('install.step2');
+    Route::post('/step2', [InstallController::class, 'storeStep2'])->name('install.step2.store');
+    Route::get('/step3', [InstallController::class, 'step3'])->name('install.step3');
+    Route::post('/complete', [InstallController::class, 'completeInstallation'])->name('install.complete');
+    Route::get('/complete', [InstallController::class, 'complete'])->name('install.complete.view');
     Route::post('/test-database', [InstallController::class, 'testDatabase'])->name('install.test-database');
-    Route::get('/complete', [InstallController::class, 'complete'])->name('install.complete');
 });
 
 // Main application routes (protected by installation middleware)

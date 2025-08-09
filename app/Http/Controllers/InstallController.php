@@ -20,6 +20,17 @@ class InstallController extends Controller
             return redirect('/')->with('message', 'System is already installed.');
         }
 
+        // Redirect to step 1
+        return redirect()->route('install.step1');
+    }
+
+    public function step1()
+    {
+        // Check if system is already installed
+        if ($this->isInstalled()) {
+            return redirect('/')->with('message', 'System is already installed.');
+        }
+
         // Ensure basic environment is set up
         $this->ensureBasicEnvironment();
 
@@ -27,35 +38,40 @@ class InstallController extends Controller
         $requirements = $this->checkSystemRequirements();
         $permissions = $this->checkPermissions();
 
-        return view('install.index', compact('requirements', 'permissions'));
+        return view('install.step1', compact('requirements', 'permissions'));
     }
 
-    public function store(Request $request)
+    public function step2()
     {
-        try {
-            $request->validate([
-                'site_name' => 'required|string|max:255',
-                'site_description' => 'nullable|string',
-                'admin_name' => 'required|string|max:255',
-                'admin_email' => 'required|email',
-                'admin_password' => 'required|min:8|confirmed',
-                'db_host' => 'required|string',
-                'db_port' => 'required|numeric',
-                'db_database' => 'required|string',
-                'db_username' => 'required|string',
-                'db_password' => 'nullable|string',
-                'council_name' => 'required|string|max:255',
-                'council_address' => 'required|string',
-                'council_contact' => 'required|string',
-            ]);
+        // Check if system is already installed
+        if ($this->isInstalled()) {
+            return redirect('/')->with('message', 'System is already installed.');
+        }
 
-            // First, test database connection before proceeding
+        return view('install.step2');
+    }
+
+    public function storeStep2(Request $request)
+    {
+        // Validate step 2 data
+        $request->validate([
+            'site_name' => 'required|string|max:255',
+            'site_description' => 'nullable|string',
+            'db_host' => 'required|string',
+            'db_port' => 'required|numeric',
+            'db_database' => 'required|string',
+            'db_username' => 'required|string',
+            'db_password' => 'nullable|string',
+        ]);
+
+        try {
+            // Test database connection
             $this->testDatabaseConnection($request);
 
             // Update environment file
             $this->updateEnvironmentFile($request);
 
-            // Clear config cache to ensure new environment variables are loaded
+            // Clear config cache
             Artisan::call('config:clear');
 
             // Set database connection for this request
@@ -71,6 +87,49 @@ class InstallController extends Controller
 
             // Run migrations
             Artisan::call('migrate', ['--force' => true]);
+
+            // Store step 2 data in session for step 3
+            session(['install_step2_data' => $request->only(['site_name', 'site_description'])]);
+
+            return redirect()->route('install.step3')->with('success', 'Database configured successfully! Please complete the installation.');
+
+        } catch (\Exception $e) {
+            \Log::error('Step 2 installation failed: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Database configuration failed: ' . $e->getMessage()])->withInput();
+        }
+    }
+
+    public function step3()
+    {
+        // Check if system is already installed
+        if ($this->isInstalled()) {
+            return redirect('/')->with('message', 'System is already installed.');
+        }
+
+        // Check if step 2 was completed
+        if (!session('install_step2_data')) {
+            return redirect()->route('install.step2')->withErrors(['error' => 'Please complete database configuration first.']);
+        }
+
+        return view('install.step3');
+    }
+
+    public function completeInstallation(Request $request)
+    {
+        try {
+            // Check if step 2 was completed
+            if (!session('install_step2_data')) {
+                return redirect()->route('install.step2')->withErrors(['error' => 'Please complete database configuration first.']);
+            }
+
+            $request->validate([
+                'admin_name' => 'required|string|max:255',
+                'admin_email' => 'required|email',
+                'admin_password' => 'required|min:8|confirmed',
+                'council_name' => 'required|string|max:255',
+                'council_address' => 'required|string',
+                'council_contact' => 'required|string',
+            ]);
 
             // Create admin user
             $admin = User::create([
@@ -94,6 +153,9 @@ class InstallController extends Controller
 
             // Mark installation as complete
             $this->markInstallationComplete();
+
+            // Clear installation session data
+            session()->forget(['install_step2_data']);
 
             return redirect()->route('install.complete')->with('success', 'Installation completed successfully!');
 
