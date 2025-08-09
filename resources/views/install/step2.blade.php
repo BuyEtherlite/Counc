@@ -42,7 +42,7 @@
                 @endif
 
                 <form method="POST" action="{{ route('install.step2.store') }}" id="databaseForm">
-                    @csrf
+                    
 
                     <!-- Site Settings -->
                     <div class="row mb-4">
@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
         continueButton.disabled = true;
         document.getElementById('continueText').textContent = 'Setting up database...';
         document.getElementById('continueSpinner').style.display = 'inline-block';
-        
+
         // Disable all form inputs to prevent changes during submission
         const formInputs = databaseForm.querySelectorAll('input, button');
         formInputs.forEach(input => {

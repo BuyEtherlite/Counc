@@ -16,5 +16,8 @@ class VerifyCsrfToken extends Middleware
         'install/*',
         '/install',
         '/install/*',
+        'install/step2',
+        'install/complete',
+        'install/test-database',
     ];
 }

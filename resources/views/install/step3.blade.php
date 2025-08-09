@@ -1,4 +1,3 @@
-
 @extends('layouts.install')
 
 @section('title', 'Council Details - Council ERP Installation')
@@ -34,9 +33,8 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('install.complete') }}" id="finalForm">
-                    @csrf
-                    
+                <form method="POST" action="{{ route('install.complete') }}">
+
                     <!-- Admin User Settings -->
                     <div class="row mb-4">
                         <div class="col-12">
@@ -44,12 +42,12 @@
                         </div>
                         <div class="col-md-6">
                             <label for="admin_name" class="form-label">Admin Name *</label>
-                            <input type="text" class="form-control" id="admin_name" name="admin_name" 
+                            <input type="text" class="form-control" id="admin_name" name="admin_name"
                                    value="{{ old('admin_name') }}" required>
                         </div>
                         <div class="col-md-6">
                             <label for="admin_email" class="form-label">Admin Email *</label>
-                            <input type="email" class="form-control" id="admin_email" name="admin_email" 
+                            <input type="email" class="form-control" id="admin_email" name="admin_email"
                                    value="{{ old('admin_email') }}" required>
                         </div>
                         <div class="col-md-6">
@@ -59,7 +57,7 @@
                         </div>
                         <div class="col-md-6">
                             <label for="admin_password_confirmation" class="form-label">Confirm Password *</label>
-                            <input type="password" class="form-control" id="admin_password_confirmation" 
+                            <input type="password" class="form-control" id="admin_password_confirmation"
                                    name="admin_password_confirmation" required>
                         </div>
                     </div>
@@ -71,7 +69,7 @@
                         </div>
                         <div class="col-md-12">
                             <label for="council_name" class="form-label">Council Name *</label>
-                            <input type="text" class="form-control" id="council_name" name="council_name" 
+                            <input type="text" class="form-control" id="council_name" name="council_name"
                                    value="{{ old('council_name') }}" required>
                         </div>
                         <div class="col-md-12">
@@ -80,7 +78,7 @@
                         </div>
                         <div class="col-md-12">
                             <label for="council_contact" class="form-label">Contact Information *</label>
-                            <textarea class="form-control" id="council_contact" name="council_contact" rows="2" 
+                            <textarea class="form-control" id="council_contact" name="council_contact" rows="2"
                                       placeholder="Phone, Email, Website" required>{{ old('council_contact') }}</textarea>
                         </div>
                     </div>
@@ -129,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Check password confirmation
         const password = document.getElementById('admin_password').value;
         const confirmPassword = document.getElementById('admin_password_confirmation').value;
-        
+
         if (password !== confirmPassword) {
             document.getElementById('admin_password_confirmation').classList.add('is-invalid');
             hasErrors = true;
@@ -144,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
         installButton.disabled = true;
         document.getElementById('installText').textContent = 'Installing...';
         document.getElementById('installSpinner').style.display = 'inline-block';
-        
+
         // Disable all form inputs to prevent changes
         const formInputs = finalForm.querySelectorAll('input, button, textarea');
         formInputs.forEach(input => input.disabled = true);

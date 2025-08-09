@@ -53,9 +53,9 @@ class InstallController extends Controller
 
     public function storeStep2(Request $request)
     {
-        // Start session explicitly
-        if (!$request->session()->isStarted()) {
-            $request->session()->start();
+        // Start session explicitly if not started
+        if (!session()->isStarted()) {
+            session()->start();
         }
 
         // Validate step 2 data
@@ -83,7 +83,7 @@ class InstallController extends Controller
             } catch (\Exception $e) {
                 \Log::warning('Cache/config clear failed during installation: ' . $e->getMessage());
             }
-            
+
             // Force reload the configuration
             $app = app();
             $app->make('config')->set('database.connections.mysql.host', $request->db_host);
@@ -91,7 +91,7 @@ class InstallController extends Controller
             $app->make('config')->set('database.connections.mysql.database', $request->db_database);
             $app->make('config')->set('database.connections.mysql.username', $request->db_username);
             $app->make('config')->set('database.connections.mysql.password', $request->db_password);
-            
+
             // Set default connection to mysql
             $app->make('config')->set('database.default', 'mysql');
 
@@ -113,13 +113,13 @@ class InstallController extends Controller
                 '--force' => true,
                 '--database' => 'mysql'
             ]);
-            
+
             if ($exitCode !== 0) {
                 $output = Artisan::output();
                 \Log::error('Migration output: ' . $output);
                 throw new \Exception('Migration failed: ' . $output);
             }
-            
+
             \Log::info('Database migrations completed successfully');
 
             // Store step 2 data in session - use multiple methods to ensure persistence
@@ -128,14 +128,14 @@ class InstallController extends Controller
                 'site_description' => $validated['site_description'] ?? '',
                 'completed_at' => now()->timestamp
             ];
-            
+
             $request->session()->put('install_step2_data', $sessionData);
             $request->session()->put('install_db_configured', true);
             $request->session()->put('install_progress', 'step2_completed');
-            
+
             // Flash data as well for immediate use
             $request->session()->flash('install_step2_completed', true);
-            
+
             // Force session save and regenerate ID to prevent conflicts
             $request->session()->save();
             $request->session()->regenerate();
@@ -174,7 +174,7 @@ class InstallController extends Controller
         $dbConfigured = session('install_db_configured');
         $installProgress = session('install_progress');
         $step2Completed = session('install_step2_completed');
-        
+
         \Log::info('Step 3 session check:', [
             'step2_data' => $step2Data,
             'db_configured' => $dbConfigured,
@@ -207,6 +207,11 @@ class InstallController extends Controller
     public function completeInstallation(Request $request)
     {
         try {
+            // Start session explicitly if not started
+            if (!session()->isStarted()) {
+                session()->start();
+            }
+
             // Check if step 2 was completed and database is configured
             if (!session('install_step2_data') || !session('install_db_configured')) {
                 return redirect()->route('install.step2')->withErrors(['error' => 'Please complete database configuration first.']);
@@ -257,7 +262,7 @@ class InstallController extends Controller
             $this->markInstallationComplete();
 
             // Clear installation session data
-            session()->forget(['install_step2_data', 'install_db_configured']);
+            session()->forget(['install_step2_data', 'install_db_configured', 'install_progress']);
 
             \Log::info('Installation completed successfully');
 
@@ -317,7 +322,7 @@ class InstallController extends Controller
 
         // Get admin user (assuming it's the first user created)
         $admin = \App\Models\User::where('role', 'super_admin')->first();
-        
+
         if (!$admin) {
             return redirect('/install')->withErrors(['error' => 'Admin user not found']);
         }
@@ -328,7 +333,7 @@ class InstallController extends Controller
     private function ensureBasicEnvironment()
     {
         $envFile = base_path('.env');
-        
+
         // If .env doesn't exist, create it from .env.example
         if (!file_exists($envFile)) {
             if (file_exists(base_path('.env.example'))) {
@@ -346,11 +351,11 @@ class InstallController extends Controller
                 $envContent .= "DB_DATABASE=council_erp\n";
                 $envContent .= "DB_USERNAME=root\n";
                 $envContent .= "DB_PASSWORD=\n";
-                
+
                 file_put_contents($envFile, $envContent);
             }
         }
-        
+
         // Generate APP_KEY if it's missing
         $env = file_get_contents($envFile);
         if (preg_match('/^APP_KEY=$/m', $env) || preg_match('/^APP_KEY=\s*$/m', $env)) {
@@ -363,25 +368,25 @@ class InstallController extends Controller
     private function updateEnvironmentFile($request)
     {
         $envFile = base_path('.env');
-        
+
         // Ensure .env exists
         $this->ensureBasicEnvironment();
-        
+
         $env = file_get_contents($envFile);
 
         // Update app settings
         $env = preg_replace('/^APP_NAME=.*$/m', 'APP_NAME="' . $request->site_name . '"', $env);
-        
+
         // Ensure we're using MySQL connection
         $env = preg_replace('/^DB_CONNECTION=.*$/m', 'DB_CONNECTION=mysql', $env);
-        
+
         // Update database settings
         $env = preg_replace('/^DB_HOST=.*$/m', 'DB_HOST=' . $request->db_host, $env);
         $env = preg_replace('/^DB_PORT=.*$/m', 'DB_PORT=' . $request->db_port, $env);
         $env = preg_replace('/^DB_DATABASE=.*$/m', 'DB_DATABASE=' . $request->db_database, $env);
         $env = preg_replace('/^DB_USERNAME=.*$/m', 'DB_USERNAME=' . $request->db_username, $env);
         $env = preg_replace('/^DB_PASSWORD=.*$/m', 'DB_PASSWORD="' . $request->db_password . '"', $env);
-        
+
         // Add DB_FOREIGN_KEYS if not present
         if (!preg_match('/^DB_FOREIGN_KEYS=/m', $env)) {
             $env .= "\nDB_FOREIGN_KEYS=true\n";
@@ -393,7 +398,7 @@ class InstallController extends Controller
         if (!file_put_contents($envFile, $env)) {
             throw new \Exception('Failed to update .env file');
         }
-        
+
         \Log::info('Environment file updated successfully');
     }
 
@@ -426,10 +431,10 @@ class InstallController extends Controller
 
             // Set the test connection
             config(['database.connections.test_connection' => $connection]);
-            
+
             // Test the connection
             DB::connection('test_connection')->getPdo();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Database connection successful!'
@@ -522,7 +527,7 @@ class InstallController extends Controller
         ];
 
         $permissions = [];
-        
+
         foreach ($paths as $name => $path) {
             $permissions[$name] = [
                 'name' => $name,
