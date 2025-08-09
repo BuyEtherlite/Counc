@@ -6,6 +6,7 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
+    'App\\Console\\Commands\\DebugCommand' => $baseDir . '/app/Console/Commands/DebugCommand.php',
     'App\\Http\\Controllers\\Admin\\DepartmentController' => $baseDir . '/app/Http/Controllers/Admin/DepartmentController.php',
     'App\\Http\\Controllers\\Admin\\OfficeController' => $baseDir . '/app/Http/Controllers/Admin/OfficeController.php',
     'App\\Http\\Controllers\\Admin\\UserController' => $baseDir . '/app/Http/Controllers/Admin/UserController.php',
@@ -18,6 +19,7 @@ return array(
     'App\\Http\\Controllers\\Housing\\PropertyController' => $baseDir . '/app/Http/Controllers/Housing/PropertyController.php',
     'App\\Http\\Controllers\\Housing\\WaitingListController' => $baseDir . '/app/Http/Controllers/Housing/WaitingListController.php',
     'App\\Http\\Controllers\\InstallController' => $baseDir . '/app/Http/Controllers/InstallController.php',
+    'App\\Http\\Kernel' => $baseDir . '/app/Http/Kernel.php',
     'App\\Http\\Middleware\\AdminMiddleware' => $baseDir . '/app/Http/Middleware/AdminMiddleware.php',
     'App\\Http\\Middleware\\EnsureInstallation' => $baseDir . '/app/Http/Middleware/EnsureInstallation.php',
     'App\\Http\\Middleware\\EnsureInstalled' => $baseDir . '/app/Http/Middleware/EnsureInstalled.php',
@@ -31,6 +33,7 @@ return array(
     'App\\Models\\Housing\\WaitingList' => $baseDir . '/app/Models/Housing/WaitingList.php',
     'App\\Models\\Office' => $baseDir . '/app/Models/Office.php',
     'App\\Models\\User' => $baseDir . '/app/Models/User.php',
+    'App\\Services\\DebugAgent' => $baseDir . '/app/Services/DebugAgent.php',
     'Attribute' => $vendorDir . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',
     'Brick\\Math\\BigDecimal' => $vendorDir . '/brick/math/src/BigDecimal.php',
     'Brick\\Math\\BigInteger' => $vendorDir . '/brick/math/src/BigInteger.php',
