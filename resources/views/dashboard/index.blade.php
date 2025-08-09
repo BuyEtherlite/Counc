@@ -96,11 +96,11 @@
             <p class="text-muted">Quick access to your assigned modules</p>
         </div>
     </div>
-    
+
     <div class="row">
         @foreach($accessibleModules as $moduleKey => $module)
         <div class="col-md-4 col-lg-3 mb-3">
-            <div class="card module-card h-100">
+            <div class="card h-100 module-card" style="cursor: pointer;" onclick="navigateToModule('{{ $moduleKey }}')">
                 <div class="card-body text-center">
                     <div class="display-6 mb-3">{{ $module['icon'] }}</div>
                     <h6 class="card-title">{{ $module['name'] }}</h6>
@@ -172,9 +172,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add click handlers for module cards
     document.querySelectorAll('.module-card').forEach(card => {
         card.addEventListener('click', function(e) {
+            // Check if the click was not on the "View Features" button
             if (!e.target.closest('button')) {
                 const button = this.querySelector('button[data-bs-toggle="collapse"]');
-                if (button) {
+                if (button && !button.contains(e.target)) { // Ensure click is not on the button itself
                     button.click();
                 }
             }
@@ -182,4 +183,25 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-@endsection
+<script>
+function navigateToModule(moduleKey) {
+    const routes = {
+        'housing': '{{ route("housing.applications.index") }}',
+        'administration': '{{ route("administration.index") }}',
+        'facilities': '{{ route("facilities.index") }}',
+        'cemeteries': '{{ route("cemeteries.index") }}',
+        'property': '{{ route("property.index") }}',
+        'planning': '{{ route("planning.index") }}',
+        'water': '{{ route("water.index") }}',
+        'finance': '{{ route("finance.index") }}',
+        'inventory': '{{ route("inventory.index") }}',
+        'committee': '{{ route("committee.index") }}'
+    };
+
+    if (routes[moduleKey]) {
+        window.location.href = routes[moduleKey];
+    }
+}
+</script>
+</new_str>
+</changes>

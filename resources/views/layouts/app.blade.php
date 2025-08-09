@@ -56,7 +56,7 @@
                         <h4>🏛️ Council ERP</h4>
                         <small>{{ config('app.name', 'Council ERP') }}</small>
                     </div>
-                    
+
                     @auth
                     <ul class="nav flex-column">
                         <li class="nav-item">
@@ -64,7 +64,7 @@
                                 <i class="fas fa-tachometer-alt me-2"></i>Dashboard
                             </a>
                         </li>
-                        
+
                         @if(auth()->user()->role === 'super_admin' || auth()->user()->role === 'admin')
                         <li class="nav-item">
                             <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-light">
@@ -87,7 +87,7 @@
                             </a>
                         </li>
                         @endif
-                        
+
                         <!-- ERP Modules will be displayed here based on user permissions -->
                         @if(isset($accessibleModules) && count($accessibleModules) > 0)
                         <li class="nav-item">
@@ -115,6 +115,56 @@
                         </li>
                         @endforeach
                         @endif
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('housing.applications.index') }}">
+                                <i class="fas fa-home me-2"></i>Housing Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('administration.index') }}">
+                                <i class="fas fa-briefcase me-2"></i>Administration CRM
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('facilities.index') }}">
+                                <i class="fas fa-swimming-pool me-2"></i>Facility Bookings
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('cemeteries.index') }}">
+                                <i class="fas fa-cross me-2"></i>Cemeteries
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('property.index') }}">
+                                <i class="fas fa-building me-2"></i>Property Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('planning.index') }}">
+                                <i class="fas fa-drafting-compass me-2"></i>Town Planning
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('water.index') }}">
+                                <i class="fas fa-tint me-2"></i>Water Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('finance.index') }}">
+                                <i class="fas fa-dollar-sign me-2"></i>Finance
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('inventory.index') }}">
+                                <i class="fas fa-boxes me-2"></i>Inventory
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('committee.index') }}">
+                                <i class="fas fa-users me-2"></i>Committee Administration
+                            </a>
+                        </li>
                     </ul>
                     @endauth
                 </div>
