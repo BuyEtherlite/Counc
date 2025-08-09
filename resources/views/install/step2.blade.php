@@ -1,4 +1,3 @@
-
 @extends('layouts.install')
 
 @section('title', 'Database Configuration - Council ERP Installation')
@@ -30,7 +29,7 @@
 
                 <form method="POST" action="{{ route('install.step2.store') }}" id="databaseForm">
                     @csrf
-                    
+
                     <!-- Site Settings -->
                     <div class="row mb-4">
                         <div class="col-12">

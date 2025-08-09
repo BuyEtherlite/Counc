@@ -65,36 +65,63 @@ class InstallController extends Controller
         ]);
 
         try {
-            // Test database connection
+            // Test database connection first
             $this->testDatabaseConnection($request);
 
-            // Update environment file
+            // Update environment file with new database settings
             $this->updateEnvironmentFile($request);
 
-            // Clear config cache
+            // Clear all config and cache
             Artisan::call('config:clear');
+            Artisan::call('cache:clear');
+            
+            // Force reload the configuration
+            $app = app();
+            $app->make('config')->set('database.connections.mysql.host', $request->db_host);
+            $app->make('config')->set('database.connections.mysql.port', $request->db_port);
+            $app->make('config')->set('database.connections.mysql.database', $request->db_database);
+            $app->make('config')->set('database.connections.mysql.username', $request->db_username);
+            $app->make('config')->set('database.connections.mysql.password', $request->db_password);
+            
+            // Set default connection to mysql
+            $app->make('config')->set('database.default', 'mysql');
 
-            // Set database connection for this request
-            config(['database.connections.mysql.host' => $request->db_host]);
-            config(['database.connections.mysql.port' => $request->db_port]);
-            config(['database.connections.mysql.database' => $request->db_database]);
-            config(['database.connections.mysql.username' => $request->db_username]);
-            config(['database.connections.mysql.password' => $request->db_password]);
-
-            // Reconnect to database with new settings
+            // Purge and reconnect to database
             DB::purge('mysql');
             DB::reconnect('mysql');
 
-            // Run migrations
-            Artisan::call('migrate', ['--force' => true]);
+            // Test the connection again after reconnection
+            try {
+                DB::connection('mysql')->getPdo();
+            } catch (\Exception $e) {
+                throw new \Exception('Failed to connect to database after configuration: ' . $e->getMessage());
+            }
+
+            // Run migrations with force flag
+            \Log::info('Starting database migrations...');
+            $exitCode = Artisan::call('migrate', [
+                '--force' => true,
+                '--database' => 'mysql'
+            ]);
+            
+            if ($exitCode !== 0) {
+                $output = Artisan::output();
+                throw new \Exception('Migration failed: ' . $output);
+            }
+            
+            \Log::info('Database migrations completed successfully');
 
             // Store step 2 data in session for step 3
-            session(['install_step2_data' => $request->only(['site_name', 'site_description'])]);
+            session([
+                'install_step2_data' => $request->only(['site_name', 'site_description']),
+                'install_db_configured' => true
+            ]);
 
-            return redirect()->route('install.step3')->with('success', 'Database configured successfully! Please complete the installation.');
+            return redirect()->route('install.step3')->with('success', 'Database configured and migrated successfully! Please complete the final step.');
 
         } catch (\Exception $e) {
             \Log::error('Step 2 installation failed: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
             return back()->withErrors(['error' => 'Database configuration failed: ' . $e->getMessage()])->withInput();
         }
     }
@@ -107,8 +134,16 @@ class InstallController extends Controller
         }
 
         // Check if step 2 was completed
-        if (!session('install_step2_data')) {
+        if (!session('install_step2_data') || !session('install_db_configured')) {
             return redirect()->route('install.step2')->withErrors(['error' => 'Please complete database configuration first.']);
+        }
+
+        // Verify database connection is still working
+        try {
+            DB::connection('mysql')->getPdo();
+        } catch (\Exception $e) {
+            session()->forget(['install_step2_data', 'install_db_configured']);
+            return redirect()->route('install.step2')->withErrors(['error' => 'Database connection lost. Please reconfigure database settings.']);
         }
 
         return view('install.step3');
@@ -117,8 +152,8 @@ class InstallController extends Controller
     public function completeInstallation(Request $request)
     {
         try {
-            // Check if step 2 was completed
-            if (!session('install_step2_data')) {
+            // Check if step 2 was completed and database is configured
+            if (!session('install_step2_data') || !session('install_db_configured')) {
                 return redirect()->route('install.step2')->withErrors(['error' => 'Please complete database configuration first.']);
             }
 
@@ -131,6 +166,14 @@ class InstallController extends Controller
                 'council_contact' => 'required|string',
             ]);
 
+            // Verify database connection before proceeding
+            try {
+                DB::connection('mysql')->getPdo();
+            } catch (\Exception $e) {
+                session()->forget(['install_step2_data', 'install_db_configured']);
+                return redirect()->route('install.step2')->withErrors(['error' => 'Database connection lost. Please reconfigure database settings.']);
+            }
+
             // Create admin user
             $admin = User::create([
                 'name' => $request->admin_name,
@@ -140,29 +183,36 @@ class InstallController extends Controller
                 'is_active' => true,
             ]);
 
+            \Log::info('Admin user created: ' . $admin->email);
+
             // Store admin password temporarily for display (security: only in session)
             session(['temp_admin_password' => $request->admin_password]);
 
             // Create council record
-            Council::create([
+            $council = Council::create([
                 'name' => $request->council_name,
                 'address' => $request->council_address,
                 'contact_info' => $request->council_contact,
                 'is_primary' => true,
             ]);
 
+            \Log::info('Council record created: ' . $council->name);
+
             // Mark installation as complete
             $this->markInstallationComplete();
 
             // Clear installation session data
-            session()->forget(['install_step2_data']);
+            session()->forget(['install_step2_data', 'install_db_configured']);
 
-            return redirect()->route('install.complete')->with('success', 'Installation completed successfully!');
+            \Log::info('Installation completed successfully');
+
+            return redirect()->route('install.complete.view')->with('success', 'Installation completed successfully!');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
             \Log::error('Installation failed: ' . $e->getMessage());
+            \Log::error('Stack trace: ' . $e->getTraceAsString());
             return back()->withErrors(['error' => 'Installation failed: ' . $e->getMessage()])->withInput();
         }
     }
@@ -264,14 +314,32 @@ class InstallController extends Controller
         
         $env = file_get_contents($envFile);
 
+        // Update app settings
         $env = preg_replace('/^APP_NAME=.*$/m', 'APP_NAME="' . $request->site_name . '"', $env);
+        
+        // Ensure we're using MySQL connection
+        $env = preg_replace('/^DB_CONNECTION=.*$/m', 'DB_CONNECTION=mysql', $env);
+        
+        // Update database settings
         $env = preg_replace('/^DB_HOST=.*$/m', 'DB_HOST=' . $request->db_host, $env);
         $env = preg_replace('/^DB_PORT=.*$/m', 'DB_PORT=' . $request->db_port, $env);
         $env = preg_replace('/^DB_DATABASE=.*$/m', 'DB_DATABASE=' . $request->db_database, $env);
         $env = preg_replace('/^DB_USERNAME=.*$/m', 'DB_USERNAME=' . $request->db_username, $env);
-        $env = preg_replace('/^DB_PASSWORD=.*$/m', 'DB_PASSWORD=' . $request->db_password, $env);
+        $env = preg_replace('/^DB_PASSWORD=.*$/m', 'DB_PASSWORD="' . $request->db_password . '"', $env);
+        
+        // Add DB_FOREIGN_KEYS if not present
+        if (!preg_match('/^DB_FOREIGN_KEYS=/m', $env)) {
+            $env .= "\nDB_FOREIGN_KEYS=true\n";
+        } else {
+            $env = preg_replace('/^DB_FOREIGN_KEYS=.*$/m', 'DB_FOREIGN_KEYS=true', $env);
+        }
 
-        file_put_contents($envFile, $env);
+        // Write the updated environment file
+        if (!file_put_contents($envFile, $env)) {
+            throw new \Exception('Failed to update .env file');
+        }
+        
+        \Log::info('Environment file updated successfully');
     }
 
     // Test database connection via AJAX
