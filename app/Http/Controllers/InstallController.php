@@ -53,6 +53,11 @@ class InstallController extends Controller
 
     public function storeStep2(Request $request)
     {
+        // Start session explicitly
+        if (!$request->session()->isStarted()) {
+            $request->session()->start();
+        }
+
         // Validate step 2 data
         $validated = $request->validate([
             'site_name' => 'required|string|max:255',
@@ -117,17 +122,30 @@ class InstallController extends Controller
             
             \Log::info('Database migrations completed successfully');
 
-            // Store step 2 data in session for step 3 - make sure session is saved
-            $request->session()->put('install_step2_data', [
+            // Store step 2 data in session - use multiple methods to ensure persistence
+            $sessionData = [
                 'site_name' => $validated['site_name'],
-                'site_description' => $validated['site_description'] ?? ''
-            ]);
+                'site_description' => $validated['site_description'] ?? '',
+                'completed_at' => now()->timestamp
+            ];
+            
+            $request->session()->put('install_step2_data', $sessionData);
             $request->session()->put('install_db_configured', true);
-            $request->session()->save(); // Force session save
+            $request->session()->put('install_progress', 'step2_completed');
+            
+            // Flash data as well for immediate use
+            $request->session()->flash('install_step2_completed', true);
+            
+            // Force session save and regenerate ID to prevent conflicts
+            $request->session()->save();
+            $request->session()->regenerate();
 
-            \Log::info('Session data stored, redirecting to step 3');
+            \Log::info('Session data stored successfully: ' . json_encode($sessionData));
+            \Log::info('Redirecting to step 3...');
 
-            return redirect()->route('install.step3')->with('success', 'Database configured and migrated successfully! Please complete the final step.');
+            return redirect()->route('install.step3')
+                ->with('success', 'Database configured and migrated successfully! Please complete the final step.')
+                ->with('step2_data', $sessionData);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             \Log::error('Validation failed: ' . json_encode($e->errors()));
@@ -146,17 +164,41 @@ class InstallController extends Controller
             return redirect('/')->with('message', 'System is already installed.');
         }
 
-        // Check if step 2 was completed
-        if (!session('install_step2_data') || !session('install_db_configured')) {
-            return redirect()->route('install.step2')->withErrors(['error' => 'Please complete database configuration first.']);
+        // Start session explicitly if not started
+        if (!session()->isStarted()) {
+            session()->start();
+        }
+
+        // Check if step 2 was completed - check multiple session keys
+        $step2Data = session('install_step2_data');
+        $dbConfigured = session('install_db_configured');
+        $installProgress = session('install_progress');
+        $step2Completed = session('install_step2_completed');
+        
+        \Log::info('Step 3 session check:', [
+            'step2_data' => $step2Data,
+            'db_configured' => $dbConfigured,
+            'install_progress' => $installProgress,
+            'step2_completed' => $step2Completed,
+            'session_id' => session()->getId()
+        ]);
+
+        if (!$step2Data && !$dbConfigured && !$step2Completed) {
+            \Log::warning('Step 2 not completed, redirecting back');
+            return redirect()->route('install.step2')
+                ->withErrors(['error' => 'Please complete database configuration first.'])
+                ->with('warning', 'Session data missing. Please complete the database setup again.');
         }
 
         // Verify database connection is still working
         try {
             DB::connection('mysql')->getPdo();
+            \Log::info('Database connection verified for step 3');
         } catch (\Exception $e) {
-            session()->forget(['install_step2_data', 'install_db_configured']);
-            return redirect()->route('install.step2')->withErrors(['error' => 'Database connection lost. Please reconfigure database settings.']);
+            \Log::error('Database connection lost in step 3: ' . $e->getMessage());
+            session()->forget(['install_step2_data', 'install_db_configured', 'install_progress']);
+            return redirect()->route('install.step2')
+                ->withErrors(['error' => 'Database connection lost. Please reconfigure database settings.']);
         }
 
         return view('install.step3');

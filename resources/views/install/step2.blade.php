@@ -27,6 +27,20 @@
                     </div>
                 @endif
 
+                @if (session('success'))
+                    <div class="alert alert-success">
+                        <h6 class="alert-heading">✅ Success!</h6>
+                        {{ session('success') }}
+                    </div>
+                @endif
+
+                @if (session('warning'))
+                    <div class="alert alert-warning">
+                        <h6 class="alert-heading">⚠️ Warning</h6>
+                        {{ session('warning') }}
+                    </div>
+                @endif
+
                 <form method="POST" action="{{ route('install.step2.store') }}" id="databaseForm">
                     @csrf
 
