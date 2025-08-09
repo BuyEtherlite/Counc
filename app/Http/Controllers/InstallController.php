@@ -119,12 +119,16 @@ class InstallController extends Controller
 
                 \Log::info('Admin user created: ' . $admin->email);
 
-                // Create council record
+                // Create council
                 $council = Council::create([
                     'name' => $request->council_name,
+                    'code' => strtoupper(substr($request->council_name, 0, 6)),
+                    'description' => 'Main council office',
                     'address' => $request->council_address,
-                    'contact_info' => $request->council_contact,
-                    'is_primary' => true,
+                    'phone' => $request->council_contact,
+                    'email' => 'info@council.local',
+                    'website' => null,
+                    'is_active' => true,
                 ]);
 
                 \Log::info('Council record created: ' . $council->name);

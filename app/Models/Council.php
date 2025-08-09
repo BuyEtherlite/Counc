@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Models;
@@ -11,17 +12,17 @@ class Council extends Model
 
     protected $fillable = [
         'name',
+        'code',
+        'description',
         'address',
-        'contact_info',
+        'phone',
+        'email',
         'website',
-        'logo',
-        'is_primary',
-        'settings',
+        'is_active',
     ];
 
     protected $casts = [
-        'is_primary' => 'boolean',
-        'settings' => 'array',
+        'is_active' => 'boolean',
     ];
 
     public function offices()
