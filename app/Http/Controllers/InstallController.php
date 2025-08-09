@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Http\Controllers;
@@ -74,12 +75,12 @@ class InstallController extends Controller
             // Update environment file with new database settings
             $this->updateEnvironmentFile($request);
 
-            // Clear all config and cache (with error handling)
+            // Clear configuration cache
             try {
                 Artisan::call('config:clear');
                 Artisan::call('cache:clear');
             } catch (\Exception $e) {
-                \Log::warning('Cache/config clear failed during installation: ' . $e->getMessage());
+                \Log::warning('Cache clear failed during installation: ' . $e->getMessage());
             }
 
             // Force reload the configuration
@@ -89,8 +90,6 @@ class InstallController extends Controller
             $app->make('config')->set('database.connections.mysql.database', $request->db_database);
             $app->make('config')->set('database.connections.mysql.username', $request->db_username);
             $app->make('config')->set('database.connections.mysql.password', $request->db_password);
-
-            // Set default connection to mysql
             $app->make('config')->set('database.default', 'mysql');
 
             // Purge and reconnect to database
@@ -105,7 +104,7 @@ class InstallController extends Controller
                 throw new \Exception('Failed to connect to database after configuration: ' . $e->getMessage());
             }
 
-            // Run migrations with force flag
+            // Run migrations with force flag - this is the critical part
             \Log::info('Starting database migrations...');
             $exitCode = Artisan::call('migrate', [
                 '--force' => true,
@@ -120,39 +119,33 @@ class InstallController extends Controller
 
             \Log::info('Database migrations completed successfully');
 
-            // Store step 2 data in session and also in a temporary file for persistence
-            $sessionData = [
+            // Create a persistent installation marker with database completion status
+            $installData = [
                 'site_name' => $validated['site_name'],
                 'site_description' => $validated['site_description'] ?? '',
-                'completed_at' => now()->timestamp,
-                'db_host' => $validated['db_host'],
-                'db_port' => $validated['db_port'],
-                'db_database' => $validated['db_database'],
-                'db_username' => $validated['db_username']
+                'database_configured' => true,
+                'migrations_completed' => true,
+                'step2_completed_at' => now()->timestamp,
+                'installation_stage' => 'database_ready'
             ];
 
-            // Ensure session is started
-            if (!session()->isStarted()) {
-                session()->start();
-            }
+            // Store in multiple places for persistence
+            $installFile = storage_path('app/install_progress.json');
+            file_put_contents($installFile, json_encode($installData, JSON_PRETTY_PRINT));
 
-            // Store in session
-            session(['install_step2_data' => $sessionData]);
-            session(['install_db_configured' => true]);
-            session(['install_progress' => 'step2_completed']);
-            session()->save(); // Force session save
-            
-            // Also store in a temporary file for fallback
-            $tempFile = storage_path('app/install_progress.json');
-            file_put_contents($tempFile, json_encode($sessionData));
+            // Also create a database completion marker
+            $dbReadyFile = storage_path('app/database_ready.lock');
+            file_put_contents($dbReadyFile, json_encode([
+                'completed_at' => now()->toISOString(),
+                'database' => $request->db_database,
+                'host' => $request->db_host
+            ]));
 
-            \Log::info('Session data stored successfully: ' . json_encode($sessionData));
-            \Log::info('Session ID: ' . session()->getId());
-            \Log::info('Redirecting to step 3...');
+            \Log::info('Database setup completed successfully');
 
+            // Redirect with clear success message
             return redirect()->route('install.step3')
-                ->with('success', 'Database configured and migrated successfully! Please complete the final step.')
-                ->with('step2_data', $sessionData);
+                ->with('success', 'Database setup completed! All tables have been created successfully. You can now proceed to the final configuration.');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             \Log::error('Validation failed: ' . json_encode($e->errors()));
@@ -160,7 +153,11 @@ class InstallController extends Controller
         } catch (\Exception $e) {
             \Log::error('Step 2 installation failed: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
-            return back()->withErrors(['error' => 'Database configuration failed: ' . $e->getMessage()])->withInput();
+            
+            // Clean up any partial progress
+            $this->cleanupFailedInstallation();
+            
+            return back()->withErrors(['error' => 'Database setup failed: ' . $e->getMessage()])->withInput();
         }
     }
 
@@ -174,68 +171,53 @@ class InstallController extends Controller
         // Ensure storage directories exist
         $this->ensureStorageDirectories();
 
-        // Start or regenerate session to avoid token mismatch
-        if (!session()->isStarted()) {
-            session()->start();
-        }
+        // Check if database setup was completed
+        $dbReadyFile = storage_path('app/database_ready.lock');
+        $installFile = storage_path('app/install_progress.json');
         
-        // Regenerate CSRF token for fresh form
-        session()->regenerateToken();
-
-        // Check if step 2 was completed - check session and fallback file
-        $step2Data = session('install_step2_data');
-        $dbConfigured = session('install_db_configured');
-        
-        // Fallback to temp file if session data is missing
-        $tempFile = storage_path('app/install_progress.json');
-        if (!$step2Data && file_exists($tempFile)) {
-            $fileData = json_decode(file_get_contents($tempFile), true);
-            if ($fileData) {
-                $step2Data = $fileData;
-                session(['install_step2_data' => $step2Data]);
-                session(['install_db_configured' => true]);
-                $dbConfigured = true;
-            }
-        }
-
-        \Log::info('Step 3 session check:', [
-            'step2_data' => $step2Data ? 'exists' : 'missing',
-            'db_configured' => $dbConfigured,
-            'session_id' => session()->getId(),
-            'csrf_token' => csrf_token()
-        ]);
-
-        if (!$step2Data && !$dbConfigured) {
-            \Log::warning('Step 2 not completed, redirecting back');
+        if (!file_exists($dbReadyFile) || !file_exists($installFile)) {
+            \Log::warning('Database setup not completed, redirecting to step 2');
             return redirect()->route('install.step2')
-                ->withErrors(['error' => 'Please complete database configuration first.']);
+                ->withErrors(['error' => 'Database setup must be completed first. Please configure your database connection.']);
         }
 
-        // Verify database connection is still working
+        // Verify database is still accessible
         try {
             DB::connection('mysql')->getPdo();
-            \Log::info('Database connection verified for step 3');
+            
+            // Verify tables exist
+            $tables = DB::connection('mysql')->select('SHOW TABLES');
+            if (empty($tables)) {
+                throw new \Exception('No tables found in database');
+            }
+            
+            \Log::info('Database connection and tables verified for step 3');
         } catch (\Exception $e) {
-            \Log::error('Database connection lost in step 3: ' . $e->getMessage());
-            session()->forget(['install_step2_data', 'install_db_configured', 'install_progress']);
+            \Log::error('Database verification failed in step 3: ' . $e->getMessage());
+            
+            // Clean up and redirect back
+            $this->cleanupFailedInstallation();
+            
             return redirect()->route('install.step2')
-                ->withErrors(['error' => 'Database connection lost. Please reconfigure database settings.']);
+                ->withErrors(['error' => 'Database connection lost or tables missing. Please reconfigure database settings.']);
         }
 
-        return view('install.step3');
+        // Load install progress data
+        $installData = json_decode(file_get_contents($installFile), true);
+
+        return view('install.step3', compact('installData'));
     }
 
     public function completeInstallation(Request $request)
     {
         try {
-            // Start session explicitly if not started
-            if (!session()->isStarted()) {
-                session()->start();
-            }
-
-            // Check if step 2 was completed and database is configured
-            if (!session('install_step2_data') || !session('install_db_configured')) {
-                return redirect()->route('install.step2')->withErrors(['error' => 'Please complete database configuration first.']);
+            // Verify database setup is completed
+            $dbReadyFile = storage_path('app/database_ready.lock');
+            $installFile = storage_path('app/install_progress.json');
+            
+            if (!file_exists($dbReadyFile) || !file_exists($installFile)) {
+                return redirect()->route('install.step2')
+                    ->withErrors(['error' => 'Database setup must be completed first.']);
             }
 
             $request->validate([
@@ -251,54 +233,61 @@ class InstallController extends Controller
             try {
                 DB::connection('mysql')->getPdo();
             } catch (\Exception $e) {
-                session()->forget(['install_step2_data', 'install_db_configured']);
-                return redirect()->route('install.step2')->withErrors(['error' => 'Database connection lost. Please reconfigure database settings.']);
+                $this->cleanupFailedInstallation();
+                return redirect()->route('install.step2')
+                    ->withErrors(['error' => 'Database connection lost. Please reconfigure database settings.']);
             }
 
-            // Create admin user
-            $admin = User::create([
-                'name' => $request->admin_name,
-                'email' => $request->admin_email,
-                'password' => Hash::make($request->admin_password),
-                'role' => 'super_admin',
-                'is_active' => true,
-            ]);
+            // Begin transaction for final setup
+            DB::beginTransaction();
 
-            \Log::info('Admin user created: ' . $admin->email);
+            try {
+                // Create admin user
+                $admin = User::create([
+                    'name' => $request->admin_name,
+                    'email' => $request->admin_email,
+                    'password' => Hash::make($request->admin_password),
+                    'role' => 'super_admin',
+                    'is_active' => true,
+                ]);
 
-            // Store admin password temporarily for display (security: only in session)
-            session(['temp_admin_password' => $request->admin_password]);
+                \Log::info('Admin user created: ' . $admin->email);
 
-            // Create council record
-            $council = Council::create([
-                'name' => $request->council_name,
-                'address' => $request->council_address,
-                'contact_info' => $request->council_contact,
-                'is_primary' => true,
-            ]);
+                // Create council record
+                $council = Council::create([
+                    'name' => $request->council_name,
+                    'address' => $request->council_address,
+                    'contact_info' => $request->council_contact,
+                    'is_primary' => true,
+                ]);
 
-            \Log::info('Council record created: ' . $council->name);
+                \Log::info('Council record created: ' . $council->name);
 
-            // Mark installation as complete
-            $this->markInstallationComplete();
+                // Commit the transaction
+                DB::commit();
 
-            // Clear installation session data and temp files
-            session()->forget(['install_step2_data', 'install_db_configured', 'install_progress']);
-            
-            // Remove temporary installation files
-            $tempFile = storage_path('app/install_progress.json');
-            if (file_exists($tempFile)) {
-                @unlink($tempFile);
+                // Mark installation as complete
+                $this->markInstallationComplete();
+
+                // Clean up temporary installation files
+                $this->cleanupInstallationFiles();
+
+                \Log::info('Installation completed successfully');
+
+                return redirect()->route('install.complete.view')
+                    ->with('success', 'Installation completed successfully!')
+                    ->with('admin_email', $admin->email)
+                    ->with('temp_password', $request->admin_password);
+
+            } catch (\Exception $e) {
+                DB::rollback();
+                throw $e;
             }
-
-            \Log::info('Installation completed successfully');
-
-            return redirect()->route('install.complete.view')->with('success', 'Installation completed successfully!');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
-            \Log::error('Installation failed: ' . $e->getMessage());
+            \Log::error('Final installation failed: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
             return back()->withErrors(['error' => 'Installation failed: ' . $e->getMessage()])->withInput();
         }
@@ -337,13 +326,40 @@ class InstallController extends Controller
             try {
                 DB::connection('test_connection')->statement("CREATE DATABASE IF NOT EXISTS `{$request->db_database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
             } catch (\Exception $e) {
-                // Database might already exist, that's okay
                 \Log::info('Database creation attempted: ' . $e->getMessage());
             }
             
             DB::purge('test_connection');
         } catch (\Exception $e) {
             throw new \Exception('Database connection failed: ' . $e->getMessage());
+        }
+    }
+
+    private function cleanupFailedInstallation()
+    {
+        $files = [
+            storage_path('app/install_progress.json'),
+            storage_path('app/database_ready.lock')
+        ];
+
+        foreach ($files as $file) {
+            if (file_exists($file)) {
+                @unlink($file);
+            }
+        }
+    }
+
+    private function cleanupInstallationFiles()
+    {
+        $files = [
+            storage_path('app/install_progress.json'),
+            storage_path('app/database_ready.lock')
+        ];
+
+        foreach ($files as $file) {
+            if (file_exists($file)) {
+                @unlink($file);
+            }
         }
     }
 
@@ -354,18 +370,21 @@ class InstallController extends Controller
 
     private function markInstallationComplete()
     {
-        file_put_contents(storage_path('app/installed.lock'), now());
+        $installData = [
+            'completed_at' => now()->toISOString(),
+            'version' => '1.0.0',
+            'installation_id' => Str::uuid()
+        ];
+        
+        file_put_contents(storage_path('app/installed.lock'), json_encode($installData, JSON_PRETTY_PRINT));
     }
 
     public function complete()
     {
-        // This method handles GET requests to /install/complete
-        // It should only be accessible after installation is complete
         if (!$this->isInstalled()) {
             return redirect('/install');
         }
 
-        // Get admin user (assuming it's the first user created)
         $admin = \App\Models\User::where('role', 'super_admin')->first();
 
         if (!$admin) {
@@ -379,23 +398,23 @@ class InstallController extends Controller
     {
         $envFile = base_path('.env');
 
-        // If .env doesn't exist, create it from .env.example
         if (!file_exists($envFile)) {
             if (file_exists(base_path('.env.example'))) {
                 copy(base_path('.env.example'), $envFile);
             } else {
-                // Create a minimal .env file
                 $envContent = "APP_NAME=\"Council ERP\"\n";
-                $envContent .= "APP_ENV=local\n";
-                $envContent .= "APP_DEBUG=true\n";
+                $envContent .= "APP_ENV=production\n";
+                $envContent .= "APP_DEBUG=false\n";
                 $envContent .= "APP_KEY=\n";
-                $envContent .= "APP_URL=http://localhost\n\n";
+                $envContent .= "APP_URL=https://council-erp.replit.app\n\n";
                 $envContent .= "DB_CONNECTION=mysql\n";
                 $envContent .= "DB_HOST=127.0.0.1\n";
                 $envContent .= "DB_PORT=3306\n";
                 $envContent .= "DB_DATABASE=council_erp\n";
                 $envContent .= "DB_USERNAME=root\n";
-                $envContent .= "DB_PASSWORD=\n";
+                $envContent .= "DB_PASSWORD=\n\n";
+                $envContent .= "SESSION_DRIVER=file\n";
+                $envContent .= "SESSION_LIFETIME=120\n";
 
                 file_put_contents($envFile, $envContent);
             }
@@ -430,23 +449,14 @@ class InstallController extends Controller
                     @chmod($fullPath, 0755);
                 }
             } else {
-                // Ensure proper permissions
                 @chmod($fullPath, 0755);
             }
-        }
-
-        // Ensure bootstrap/cache has proper permissions
-        $bootstrapCache = base_path('bootstrap/cache');
-        if (is_dir($bootstrapCache)) {
-            @chmod($bootstrapCache, 0755);
         }
     }
 
     private function updateEnvironmentFile($request)
     {
         $envFile = base_path('.env');
-
-        // Ensure .env exists
         $this->ensureBasicEnvironment();
 
         $env = file_get_contents($envFile);
@@ -464,14 +474,19 @@ class InstallController extends Controller
         $env = preg_replace('/^DB_USERNAME=.*$/m', 'DB_USERNAME=' . $request->db_username, $env);
         $env = preg_replace('/^DB_PASSWORD=.*$/m', 'DB_PASSWORD="' . $request->db_password . '"', $env);
 
-        // Add DB_FOREIGN_KEYS if not present
-        if (!preg_match('/^DB_FOREIGN_KEYS=/m', $env)) {
-            $env .= "\nDB_FOREIGN_KEYS=true\n";
+        // Add/update session settings for better persistence
+        if (!preg_match('/^SESSION_DRIVER=/m', $env)) {
+            $env .= "\nSESSION_DRIVER=file\n";
         } else {
-            $env = preg_replace('/^DB_FOREIGN_KEYS=.*$/m', 'DB_FOREIGN_KEYS=true', $env);
+            $env = preg_replace('/^SESSION_DRIVER=.*$/m', 'SESSION_DRIVER=file', $env);
         }
 
-        // Write the updated environment file
+        if (!preg_match('/^SESSION_LIFETIME=/m', $env)) {
+            $env .= "SESSION_LIFETIME=120\n";
+        } else {
+            $env = preg_replace('/^SESSION_LIFETIME=.*$/m', 'SESSION_LIFETIME=120', $env);
+        }
+
         if (!file_put_contents($envFile, $env)) {
             throw new \Exception('Failed to update .env file');
         }
@@ -491,7 +506,6 @@ class InstallController extends Controller
         ]);
 
         try {
-            // Create a temporary database connection
             $connection = [
                 'driver' => 'mysql',
                 'host' => $request->db_host,
@@ -506,10 +520,7 @@ class InstallController extends Controller
                 'engine' => null,
             ];
 
-            // Set the test connection
             config(['database.connections.test_connection' => $connection]);
-
-            // Test the connection
             DB::connection('test_connection')->getPdo();
 
             return response()->json([
@@ -524,7 +535,6 @@ class InstallController extends Controller
         }
     }
 
-    // Check PHP requirements
     private function checkSystemRequirements()
     {
         $requirements = [
@@ -536,12 +546,12 @@ class InstallController extends Controller
             'composer_installed' => [
                 'name' => 'Composer Dependencies',
                 'status' => file_exists(base_path('vendor/autoload.php')),
-                'current' => file_exists(base_path('vendor/autoload.php')) ? 'Installed' : 'Missing - Run composer install'
+                'current' => file_exists(base_path('vendor/autoload.php')) ? 'Installed' : 'Missing'
             ],
             'env_file' => [
                 'name' => 'Environment File (.env)',
                 'status' => file_exists(base_path('.env')),
-                'current' => file_exists(base_path('.env')) ? 'Present' : 'Missing - Will be created'
+                'current' => file_exists(base_path('.env')) ? 'Present' : 'Will be created'
             ],
             'pdo' => [
                 'name' => 'PDO Extension',
@@ -593,7 +603,6 @@ class InstallController extends Controller
         return $requirements;
     }
 
-    // Check folder permissions
     private function checkPermissions()
     {
         $paths = [
