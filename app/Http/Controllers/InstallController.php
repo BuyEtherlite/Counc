@@ -71,9 +71,25 @@ class InstallController extends Controller
             // Update environment file with new database settings
             $this->updateEnvironmentFile($request);
 
-            // Clear all config and cache
-            Artisan::call('config:clear');
-            Artisan::call('cache:clear');
+            // Clear all config and cache (with error handling)
+            try {
+                Artisan::call('config:clear');
+            } catch (\Exception $e) {
+                \Log::warning('Config clear failed during installation: ' . $e->getMessage());
+            }
+            
+            try {
+                Artisan::call('cache:clear');
+            } catch (\Exception $e) {
+                \Log::warning('Cache clear failed during installation: ' . $e->getMessage());
+                // Try to create cache table if it doesn't exist
+                try {
+                    Artisan::call('cache:table');
+                    Artisan::call('migrate', ['--force' => true, '--path' => 'database/migrations/*cache*']);
+                } catch (\Exception $cacheTableException) {
+                    \Log::warning('Cache table creation failed: ' . $cacheTableException->getMessage());
+                }
+            }
             
             // Force reload the configuration
             $app = app();
@@ -95,6 +111,15 @@ class InstallController extends Controller
                 DB::connection('mysql')->getPdo();
             } catch (\Exception $e) {
                 throw new \Exception('Failed to connect to database after configuration: ' . $e->getMessage());
+            }
+
+            // Create cache table first (if using database cache)
+            try {
+                \Log::info('Creating cache table...');
+                Artisan::call('cache:table', ['--force' => true]);
+                \Log::info('Cache table creation command completed');
+            } catch (\Exception $e) {
+                \Log::warning('Cache table creation failed: ' . $e->getMessage());
             }
 
             // Run migrations with force flag
