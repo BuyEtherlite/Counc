@@ -35,6 +35,7 @@
 
                 <form method="POST" action="{{ route('install.complete') }}" id="finalForm">
                     @csrf
+                    <input type="hidden" name="_token" value="{{ csrf_token() }}" id="csrf-token">
 
                     <!-- Admin User Settings -->
                     <div class="row mb-4">
@@ -109,6 +110,31 @@ document.addEventListener('DOMContentLoaded', function() {
     const finalForm = document.getElementById('finalForm');
     const installButton = document.getElementById('installButton');
 
+    // Refresh CSRF token periodically to prevent expiration
+    function refreshCsrfToken() {
+        fetch('/install/step3', {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newToken = doc.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            if (newToken) {
+                document.querySelector('meta[name="csrf-token"]').setAttribute('content', newToken);
+                document.getElementById('csrf-token').value = newToken;
+                console.log('CSRF token refreshed');
+            }
+        })
+        .catch(error => console.log('Token refresh failed:', error));
+    }
+
+    // Refresh token every 5 minutes
+    setInterval(refreshCsrfToken, 5 * 60 * 1000);
+
     // Handle form submission
     finalForm.addEventListener('submit', function(e) {
         // Validate required fields
@@ -138,6 +164,10 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             return;
         }
+
+        // Refresh token one more time before submission
+        const currentToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        document.getElementById('csrf-token').value = currentToken;
 
         // Show loading state during installation
         installButton.disabled = true;

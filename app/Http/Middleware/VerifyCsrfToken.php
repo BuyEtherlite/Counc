@@ -12,9 +12,6 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        'install/*',
-        '/install/*',
-        'install/test-database',
-        '/install/test-database'
+        // Installation routes are handled manually with proper token verification
     ];
 }

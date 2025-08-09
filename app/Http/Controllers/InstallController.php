@@ -131,16 +131,23 @@ class InstallController extends Controller
                 'db_username' => $validated['db_username']
             ];
 
+            // Ensure session is started
+            if (!session()->isStarted()) {
+                session()->start();
+            }
+
             // Store in session
             session(['install_step2_data' => $sessionData]);
             session(['install_db_configured' => true]);
             session(['install_progress' => 'step2_completed']);
+            session()->save(); // Force session save
             
             // Also store in a temporary file for fallback
             $tempFile = storage_path('app/install_progress.json');
             file_put_contents($tempFile, json_encode($sessionData));
 
             \Log::info('Session data stored successfully: ' . json_encode($sessionData));
+            \Log::info('Session ID: ' . session()->getId());
             \Log::info('Redirecting to step 3...');
 
             return redirect()->route('install.step3')
@@ -167,6 +174,14 @@ class InstallController extends Controller
         // Ensure storage directories exist
         $this->ensureStorageDirectories();
 
+        // Start or regenerate session to avoid token mismatch
+        if (!session()->isStarted()) {
+            session()->start();
+        }
+        
+        // Regenerate CSRF token for fresh form
+        session()->regenerateToken();
+
         // Check if step 2 was completed - check session and fallback file
         $step2Data = session('install_step2_data');
         $dbConfigured = session('install_db_configured');
@@ -186,7 +201,8 @@ class InstallController extends Controller
         \Log::info('Step 3 session check:', [
             'step2_data' => $step2Data ? 'exists' : 'missing',
             'db_configured' => $dbConfigured,
-            'session_id' => session()->getId()
+            'session_id' => session()->getId(),
+            'csrf_token' => csrf_token()
         ]);
 
         if (!$step2Data && !$dbConfigured) {
