@@ -47,12 +47,13 @@ Route::get('/', function () {
     return redirect('/dashboard');
 });
 
+// Authentication routes (available regardless of installation status)
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login']);
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
 // Check if installed before loading other routes
 Route::middleware(['ensure.installed'])->group(function () {
-    // Authentication routes
-    Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [LoginController::class, 'login']);
-    Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
     // Protected routes
     Route::middleware(['auth'])->group(function () {
