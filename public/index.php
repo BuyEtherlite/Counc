@@ -100,9 +100,13 @@ if (!file_exists($envPath)) {
     $envContent .= "APP_ENV=production\n";
     $envContent .= "APP_DEBUG=false\n";
     $envContent .= "APP_KEY=\n";
-    $envContent .= "APP_URL=https://council-erp.replit.app\n\n";
-    $envContent .= "DB_CONNECTION=sqlite\n";
-    $envContent .= "DB_DATABASE=database/database.sqlite\n";
+    $envContent .= "APP_URL=https://yourdomain.com\n\n";
+    $envContent .= "DB_CONNECTION=mysql\n";
+    $envContent .= "DB_HOST=localhost\n";
+    $envContent .= "DB_PORT=3306\n";
+    $envContent .= "DB_DATABASE=your_database_name\n";
+    $envContent .= "DB_USERNAME=your_database_user\n";
+    $envContent .= "DB_PASSWORD=your_database_password\n";
     
     // Ensure the directory is writable
     if (is_writable(dirname($envPath))) {
