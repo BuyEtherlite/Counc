@@ -1,4 +1,3 @@
-
 @extends('layouts.app')
 
 @section('page-title', 'Dashboard')
@@ -79,19 +78,19 @@
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending Tasks</div>
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Inventory Items</div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ \App\Models\Finance\Invoice::whereIn('status', ['draft', 'sent'])->count() + 
-                                   (\App\Models\Housing\Property::whereRaw('current_stock <= minimum_stock')->count() ?? 0) }}
+                                {{ \App\Models\Inventory\Item::whereColumn('current_stock', '<=', 'minimum_stock')->count() }}
                             </div>
                             <div class="mt-1">
                                 <small class="text-warning">
-                                    <i class="fas fa-tasks"></i> Requires Attention
+                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    Low Stock Alert
                                 </small>
                             </div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-clipboard-list fa-2x text-gray-300"></i>
+                            <i class="fas fa-boxes fa-2x text-gray-300"></i>
                         </div>
                     </div>
                 </div>
@@ -189,7 +188,7 @@
                         $lowStockItems = class_exists('\App\Models\Inventory\Item') ? 
                             \App\Models\Inventory\Item::whereRaw('current_stock <= minimum_stock')->count() : 0;
                     @endphp
-                    
+
                     @if($overdueInvoices > 0)
                     <div class="alert alert-danger alert-sm">
                         <i class="fas fa-exclamation-triangle me-2"></i>
@@ -222,7 +221,7 @@
         <div class="col-12">
             <h5 class="mb-3 font-weight-bold">Module Overview</h5>
         </div>
-        
+
         <div class="col-xl-4 col-lg-6 mb-4">
             <div class="card h-100">
                 <div class="card-body">
@@ -319,7 +318,7 @@
                         </div>
                         <div class="col-4">
                             <div class="border-right">
-                                @php $lowStock = class_exists('\App\Models\Inventory\Item') ? \App\Models\Inventory\Item::whereRaw('current_stock <= minimum_stock')->count() : 0; @endphp
+                                @php $lowStock = class_exists('\App\Models\Inventory\Item') ? \App\Models\Inventory\Item::whereColumn('current_stock', '<=', 'minimum_stock')->count() : 0; @endphp
                                 <div class="h6 mb-0">{{ $lowStock }}</div>
                                 <small class="text-muted">Low Stock</small>
                             </div>
