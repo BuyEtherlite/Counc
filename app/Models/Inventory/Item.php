@@ -1,4 +1,3 @@
-
 <?php
 
 namespace App\Models\Inventory;
@@ -82,16 +81,16 @@ class Item extends Model
     public function updateStock($quantity, $type, $reason = null)
     {
         $oldStock = $this->current_stock;
-        
+
         if ($type === 'in') {
             $this->current_stock += $quantity;
         } else {
             $this->current_stock -= $quantity;
         }
-        
+
         $this->total_value = $this->current_stock * $this->unit_cost;
         $this->save();
-        
+
         // Record stock movement
         $this->stockMovements()->create([
             'movement_type' => $type,

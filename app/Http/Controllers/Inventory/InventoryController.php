@@ -1,4 +1,3 @@
-
 <?php
 
 namespace App\Http\Controllers\Inventory;
@@ -72,7 +71,7 @@ class InventoryController extends Controller
         $councils = Council::where('is_active', true)->get();
         $departments = Department::where('is_active', true)->get();
         $categories = Item::distinct()->pluck('category')->filter();
-        
+
         return view('inventory.create', compact('councils', 'departments', 'categories'));
     }
 
@@ -120,7 +119,7 @@ class InventoryController extends Controller
     {
         $item->load(['council', 'department', 'stockMovements.user']);
         $recentMovements = $item->stockMovements()->latest()->take(20)->get();
-        
+
         return view('inventory.show', compact('item', 'recentMovements'));
     }
 
@@ -129,7 +128,7 @@ class InventoryController extends Controller
         $councils = Council::where('is_active', true)->get();
         $departments = Department::where('is_active', true)->get();
         $categories = Item::distinct()->pluck('category')->filter();
-        
+
         return view('inventory.edit', compact('item', 'councils', 'departments', 'categories'));
     }
 
@@ -166,7 +165,7 @@ class InventoryController extends Controller
     public function destroy(Item $item)
     {
         $item->delete();
-        
+
         return redirect()->route('inventory.index')
                         ->with('success', 'Inventory item deleted successfully.');
     }
@@ -219,7 +218,7 @@ class InventoryController extends Controller
     public function reports(Request $request)
     {
         $period = $request->get('period', 'monthly');
-        
+
         // Stock value by category
         $categoryValue = Item::selectRaw('category, SUM(total_value) as value, COUNT(*) as count')
                             ->groupBy('category')
@@ -241,14 +240,14 @@ class InventoryController extends Controller
         $lastItem = Item::where('item_code', 'like', $prefix . '%')
                        ->orderBy('item_code', 'desc')
                        ->first();
-        
+
         if ($lastItem) {
             $lastNumber = intval(substr($lastItem->item_code, -4));
             $newNumber = $lastNumber + 1;
         } else {
             $newNumber = 1;
         }
-        
+
         return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
     }
 
