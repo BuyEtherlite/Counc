@@ -1,0 +1,200 @@
+Fuel Storage Application: Specification Document
+Version: 0.8
+Date: August 11, 2025
+
+1. System Overview
+This document outlines the functional and technical specifications for a comprehensive Fuel Storage and Management application. The system is designed to facilitate the purchase, storage, and dispensing of fuel for various user types through a multi-faceted platform built on the Laravel framework.
+
+The application will consist of four primary front-facing interfaces:
+
+User Frontend: For end-users to manage their fuel, vehicles, and payments.
+
+Merchant Frontend: For fuel station managers and their employees to manage fuel dispensing and transactions.
+
+Agent Frontend: For authorized agents to top-up walk-in clients.
+
+Admin Dashboard: A centralized backend for overall system administration, located at the /imagine route.
+
+2. User Roles & Permissions
+Super Administrator:
+
+Has all permissions of a standard Administrator.
+
+Manages other Admin Users: Can create, edit, suspend, and delete other admin accounts.
+
+Assigns Roles & Permissions: Can assign specific roles (e.g., Finance Manager, Vehicle Approver, Support Staff) to other Admin Users, controlling their access to different sections of the admin dashboard (view, edit, manage).
+
+Admin User:
+
+An administrator whose permissions are defined by the Super Administrator. Access may be limited to specific functions like managing withdrawal requests, approving vehicles, or generating coupons.
+
+User (Individual):
+
+Registers and manages a personal account.
+
+Can register up to five vehicles, each requiring admin approval.
+
+Purchases and stores fuel in a digital wallet segregated by fuel type.
+
+Transfers fuel to other users (subject to limits).
+
+Authorizes payments at merchant locations.
+
+Views personal fuel consumption reports and transaction history.
+
+Fleet Manager (Corporate User):
+
+Registers and manages a corporate account.
+
+Adds company vehicles, which require admin approval.
+
+Can add, manage, and remove drivers associated with the corporate account.
+
+Can set internal fuel usage limits for individual drivers/vehicles.
+
+Views detailed reports on fuel consumption across the entire fleet and by individual drivers.
+
+Manages the central corporate fuel wallet.
+
+Driver (Managed by Fleet Manager):
+
+Is added to the system by a Fleet Manager.
+
+Logs in to a simplified interface to view their assigned vehicle(s) and any fuel limits set by their manager.
+
+Cannot top-up or transfer fuel; they only dispense fuel from the corporate balance.
+
+Merchant (Service Station Manager):
+
+Registers their service station on the platform.
+
+Manages employee accounts and banking details.
+
+Requests withdrawals of their accumulated funds.
+
+Merchant Employee (Fuel Attendant):
+
+Initiates fuel dispensing transactions for users.
+
+Agent:
+
+Tops up the fuel balance of walk-in users from their own balance.
+
+3. Core Features & Workflows
+3.1. User & Vehicle Registration
+Personal Registration: Users can register using their phone number.
+
+Vehicle Registration (All Users):
+
+When adding a vehicle, the user must input the registration number and upload a scanned copy or clear photo of the vehicle's registration book.
+
+The vehicle is added to the user's account with a "Pending Approval" status.
+
+An administrator must review the submitted document and approve the vehicle.
+
+UI Note: The main user dashboard should feature prominent "Top-up" and "Send" (for fuel transfer) buttons.
+
+3.2. Corporate Fleet Management
+As previously defined.
+
+3.3. Fuel Purchase & Storage
+As previously defined.
+
+3.4. Fuel Dispensing at Merchant Station (Primary Flow)
+As previously defined.
+
+3.5. Fuel Transfer
+As previously defined.
+
+3.6. Audit Trail
+Every fuel dispensing transaction will log: Service Station Name/ID, Employee Name/ID, User/Company Name, Driver Name (if applicable), Vehicle Registration Number, Fuel Type, Amount of Fuel (L), Date, and Timestamp.
+
+3.7. Reporting
+As previously defined.
+
+3.8. Merchant Fund Withdrawal
+As previously defined.
+
+3.9. Merchant Onboarding & Banking Details
+As previously defined.
+
+3.10. Coupon System
+Generation:
+
+An Administrator with the appropriate permissions can generate fuel coupons from the admin dashboard.
+
+When generating, the admin specifies the fuel type (e.g., Petrol) and the amount in Liters (e.g., 50L).
+
+The system generates a unique, non-sequential, and secure coupon code.
+
+The system ensures no duplicate codes are ever generated.
+
+Distribution: These coupon codes can be sold or distributed externally (e.g., for promotions, corporate gifts, or offline sales).
+
+Redemption:
+
+The User Frontend will have a "Redeem Coupon" section.
+
+The user enters the coupon code.
+
+The system validates the code against the database of unused coupons.
+
+Completion:
+
+If the code is valid, the corresponding amount and type of fuel are instantly added to the user's wallet.
+
+The coupon is then marked as "Used" or moved to an archived table in the database, permanently preventing it from being used again.
+
+If the code is invalid or already used, the user is shown an appropriate error message.
+
+4. Admin Dashboard (/imagine)
+Admin User Management (Super Admin only):
+
+A dedicated section to create, view, and manage Admin User accounts.
+
+A role and permission management interface to define what each Admin User can see and do (e.g., grant "edit" access to Fleet Management but only "view" access to Financial Configuration).
+
+User Management: View, edit, suspend, and categorize users.
+
+Account Limits:
+
+For any user account (Individual or Corporate), set: Top-up Limits, Transfer Limits, and Dispensing Limits.
+
+Fleet Management:
+
+A dedicated section to view all registered corporate accounts and their associated vehicles.
+
+Vehicle Approval Queue: A centralized page listing all pending vehicle registrations with a link to the uploaded document for verification.
+
+Coupon Management:
+
+Interface to generate new fuel coupons (specifying type and liters).
+
+A searchable and filterable list of all generated coupons, showing their status (Active, Used), value, creation date, and redemption date/user (if applicable).
+
+Agent Management: Create agent accounts and top up their fuel balances.
+
+Merchant Management: Approve/decline new merchants, view banking information, and manage withdrawal requests.
+
+Financial Configuration:
+
+Manage default currency, fuel top-up prices, and merchant withdrawal rates.
+
+System Configuration:
+
+Manage payment gateway credentials and specific payment methods.
+
+5. Technical Specifications
+Backend: Laravel (latest stable version).
+
+Database: MySQL or PostgreSQL.
+
+File Storage: A secure solution (e.g., Amazon S3, or local private storage) for storing sensitive uploaded documents.
+
+Frontend: Blade templates with Vue.js or React for dynamic components.
+
+Real-time Communication: WebSockets (e.g., Laravel Echo with Pusher).
+
+API: A RESTful API.
+
+Payment Gateway Integration: Deep integration with Paynow's API.

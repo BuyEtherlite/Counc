@@ -1,0 +1,187 @@
+Fuel Storage Application: Specification Document
+Version: 0.5
+Date: August 11, 2025
+
+1. System Overview
+This document outlines the functional and technical specifications for a comprehensive Fuel Storage and Management application. The system is designed to facilitate the purchase, storage, and dispensing of fuel for various user types through a multi-faceted platform built on the Laravel framework.
+
+The application will consist of four primary front-facing interfaces:
+
+User Frontend: For end-users to manage their fuel, vehicles, and payments.
+
+Merchant Frontend: For fuel station managers and their employees to manage fuel dispensing and transactions.
+
+Agent Frontend: For authorized agents to top-up walk-in clients.
+
+Admin Dashboard: A centralized backend for overall system administration, located at the /imagine route.
+
+2. User Roles & Permissions
+Administrator:
+
+Full access to the Admin Dashboard (/imagine).
+
+Manages system settings, user accounts, merchants, and agents.
+
+Sets fuel usage limits and fuel-to-currency conversion rates.
+
+Manages and processes merchant withdrawal requests.
+
+Tops up Agent balances.
+
+Views system-wide reports and audit trails.
+
+User (Individual, Corporate, Government):
+
+Registers and manages a personal account.
+
+Can register up to five vehicles under one account.
+
+Purchases and stores fuel (e.g., Petrol, Diesel) in a unified digital wallet.
+
+Transfers fuel to other users.
+
+Authorizes payments at merchant locations.
+
+Views personal fuel consumption reports and transaction history.
+
+Merchant (Service Station Manager):
+
+Registers their service station on the platform.
+
+Logs in with a primary username and password.
+
+Registers and manages employee accounts.
+
+Manages their service station's banking details for fund withdrawals.
+
+Views a detailed audit trail and accumulated earnings for their service station.
+
+Requests withdrawals of their accumulated funds.
+
+Merchant Employee (Fuel Attendant):
+
+Logs in via the main Merchant account by entering a unique password/PIN that identifies them.
+
+Initiates fuel dispensing transactions for users.
+
+Generates a unique QR code linked to their employee profile for payments.
+
+Agent:
+
+Logs into a dedicated Agent Frontend.
+
+Receives balance top-ups exclusively from the Administrator.
+
+Tops up the fuel balance of walk-in users from their own balance.
+
+3. Core Features & Workflows
+3.1. User Registration & Management
+Users can register using their phone number and a secure password.
+
+Post-registration, users can add up to five vehicles, each identified by its registration number.
+
+All vehicles under a single user account share the same fuel storage balance.
+
+3.2. Fuel Purchase & Storage
+Users can top up their fuel balance through integrated payment gateways. Initial integrations will include Paynow (Zimbabwe) and Payfast (South Africa).
+
+The system will support multiple currencies for top-ups, as configured in the Admin Dashboard.
+
+The fuel balance is stored generically (e.g., 50 Liters) and the type (Petrol/Diesel) is specified at the point of dispensing.
+
+3.3. Fuel Dispensing at Merchant Station (Primary Flow)
+Initiation: The User arrives at the pump. The Merchant Employee logs into their terminal.
+
+User Identification: The employee enters the User's vehicle registration number.
+
+Payment Request: The employee's terminal sends a payment request to the User's account.
+
+User Notification: The User receives an instant push notification and a pop-up modal on their dashboard requesting payment confirmation.
+
+User Action: The User has two options: Accept or Decline.
+
+Polling Mechanism: The Merchant's terminal will actively check for payment confirmation every 2 seconds.
+
+Timeout: If the User does not respond within 60 seconds, the transaction request will time out.
+
+Payment Declined: If the User declines, the Merchant is notified immediately.
+
+Payment Accepted:
+
+The corresponding fuel amount and type is deducted from the User's stored balance.
+
+The Merchant's screen updates with a "Payment Received" confirmation.
+
+The monetary value of the transaction is credited to the Merchant's account balance.
+
+An entry is created in the audit trail.
+
+3.4. QR Code Payment (Alternative Flow)
+Generation: Each Merchant Employee has a unique, dynamic QR code linked to their session/profile.
+
+Scanning: The User can scan the employee's QR code using the app.
+
+Merchant Approval: Scanning the QR code sends a transaction approval request to the Merchant's screen.
+
+Confirmation: The Merchant Employee must approve the transaction on their terminal to complete the payment.
+
+3.5. Fuel Transfer
+A user can transfer a specified amount of fuel to another user using their phone number or vehicle registration number.
+
+3.6. Audit Trail
+Every fuel dispensing transaction will log: Service Station Name/ID, Employee Name/ID, User Name/ID, Vehicle Registration Number, Fuel Type, Amount of Fuel, Monetary Value, Date, and Timestamp.
+
+Merchants can only view the audit trail for their own station. The Administrator can view all trails.
+
+3.7. Reporting
+User Reports: Consumption reports per car, historical analysis, and transaction history.
+
+Admin Reports: System-wide usage, agent transactions, and merchant volumes.
+
+3.8. Merchant Fund Withdrawal
+Accumulation: For every successful fuel dispensing transaction, the merchant's account is credited with the equivalent monetary value. The conversion rate is set by the Administrator.
+
+Request: The Service Station Manager can view their accumulated balance and request a withdrawal from their dashboard, provided their banking details are on file.
+
+Admin Approval: The withdrawal request appears in the Admin Dashboard for review.
+
+Processing: The Administrator processes the payment externally (e.g., via bank transfer) to the banking details provided by the merchant and marks the withdrawal as "Completed" in the system.
+
+3.9. Merchant Onboarding & Banking Details
+Post-Registration: After a Service Station Manager successfully registers and is approved by an Admin, they will be prompted to add their banking details before they can request a withdrawal.
+
+Input Form: The Merchant Frontend will provide a secure form for the manager to input their banking information (e.g., Bank Name, Account Holder Name, Account Number, Branch Code).
+
+Storage & Security: These details will be stored securely and encrypted. For security, editing these details may require re-authentication or an admin approval process.
+
+Admin View: Banking details are made available to the authorized finance team within the Admin Dashboard only when processing a withdrawal request.
+
+4. Admin Dashboard (/imagine)
+User Management: View, edit, suspend, and categorize users.
+
+Usage Limits: Set daily, weekly, and monthly fuel usage limits for each user category.
+
+Agent Management: Create agent accounts and top up their fuel balances.
+
+Merchant Management: Approve/decline new merchants, view details, view banking information for payout processing, and manage withdrawal requests.
+
+System Configuration:
+
+Manage payment gateway integrations (Paynow, Payfast) by securely updating API credentials.
+
+Manage currencies available for user top-ups.
+
+Set and update the conversion rates for fuel (per liter) to the system's primary settlement currency.
+
+5. Technical Specifications
+Backend: Laravel (latest stable version).
+
+Database: MySQL or PostgreSQL.
+
+Frontend: Blade templates with Vue.js or React for dynamic components.
+
+Real-time Communication: WebSockets (e.g., Laravel Echo with Pusher).
+
+API: A RESTful API.
+
+Payment Gateway Integration: Secure interaction with third-party payment APIs for user top-ups.
